@@ -2,11 +2,11 @@
   "name": "auth-backend",
   "version": "1.0.0",
   "description": "Backend de autenticación con Express, TypeScript y MySQL",
-  "main": "dist/index.js",
+  "main": "dist/app.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/app.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

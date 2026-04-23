@@ -97,4 +97,84 @@ export declare const registroSchema: z.ZodEffects<z.ZodObject<{
     nombre: string;
     confirmar_password: string;
 }>;
+export declare const crearCitaSchema: z.ZodObject<{
+    cliente_id: z.ZodNumber;
+    servicio_id: z.ZodNumber;
+    fecha: z.ZodString;
+    hora: z.ZodString;
+    barbero_id: z.ZodOptional<z.ZodNumber>;
+    observaciones: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    cliente_id: number;
+    servicio_id: number;
+    fecha: string;
+    hora: string;
+    barbero_id?: number | undefined;
+    observaciones?: string | undefined;
+}, {
+    cliente_id: number;
+    servicio_id: number;
+    fecha: string;
+    hora: string;
+    barbero_id?: number | undefined;
+    observaciones?: string | undefined;
+}>;
+export declare const modificarCitaSchema: z.ZodEffects<z.ZodObject<{
+    fecha: z.ZodOptional<z.ZodString>;
+    hora: z.ZodOptional<z.ZodString>;
+    barbero_id: z.ZodOptional<z.ZodNumber>;
+    servicio_id: z.ZodOptional<z.ZodNumber>;
+    observaciones: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    servicio_id?: number | undefined;
+    fecha?: string | undefined;
+    hora?: string | undefined;
+    barbero_id?: number | undefined;
+    observaciones?: string | undefined;
+}, {
+    servicio_id?: number | undefined;
+    fecha?: string | undefined;
+    hora?: string | undefined;
+    barbero_id?: number | undefined;
+    observaciones?: string | undefined;
+}>, {
+    servicio_id?: number | undefined;
+    fecha?: string | undefined;
+    hora?: string | undefined;
+    barbero_id?: number | undefined;
+    observaciones?: string | undefined;
+}, {
+    servicio_id?: number | undefined;
+    fecha?: string | undefined;
+    hora?: string | undefined;
+    barbero_id?: number | undefined;
+    observaciones?: string | undefined;
+}>;
+export declare const cancelarCitaSchema: z.ZodEffects<z.ZodObject<{
+    confirmar: z.ZodBoolean;
+}, "strip", z.ZodTypeAny, {
+    confirmar: boolean;
+}, {
+    confirmar: boolean;
+}>, {
+    confirmar: boolean;
+}, {
+    confirmar: boolean;
+}>;
+export declare const disponibilidadSchema: z.ZodObject<{
+    fecha: z.ZodString;
+    hora: z.ZodString;
+    servicio_id: z.ZodNumber;
+    barbero_id: z.ZodOptional<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
+    servicio_id: number;
+    fecha: string;
+    hora: string;
+    barbero_id?: number | undefined;
+}, {
+    servicio_id: number;
+    fecha: string;
+    hora: string;
+    barbero_id?: number | undefined;
+}>;
 //# sourceMappingURL=validar.middleware.d.ts.map

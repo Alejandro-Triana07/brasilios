@@ -14,6 +14,23 @@ const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh_secret';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+function isAppJwtPayload(value) {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+    const payload = value;
+    return typeof payload.sub === 'number'
+        && typeof payload.jti === 'string'
+        && typeof payload.rol === 'string'
+        && typeof payload.correo === 'string';
+}
+function isRefreshJwtPayload(value) {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+    const payload = value;
+    return typeof payload.sub === 'number' && typeof payload.jti === 'string';
+}
 function generarAccessToken(payload) {
     const jti = (0, uuid_1.v4)();
     return jsonwebtoken_1.default.sign({ ...payload, jti }, JWT_SECRET, {
@@ -26,14 +43,26 @@ function generarRefreshToken(usuarioId) {
     });
 }
 function verificarAccessToken(token) {
-    return jsonwebtoken_1.default.verify(token, JWT_SECRET);
+    const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
+    if (typeof decoded === 'string' || !isAppJwtPayload(decoded)) {
+        throw new Error('Token inválido');
+    }
+    return decoded;
 }
 function verificarRefreshToken(token) {
-    return jsonwebtoken_1.default.verify(token, JWT_REFRESH_SECRET);
+    const decoded = jsonwebtoken_1.default.verify(token, JWT_REFRESH_SECRET);
+    if (typeof decoded === 'string' || !isRefreshJwtPayload(decoded)) {
+        throw new Error('Token inválido');
+    }
+    return decoded;
 }
 function decodificarToken(token) {
     try {
-        return jsonwebtoken_1.default.decode(token);
+        const decoded = jsonwebtoken_1.default.decode(token);
+        if (!decoded || typeof decoded === 'string' || !isAppJwtPayload(decoded)) {
+            return null;
+        }
+        return decoded;
     }
     catch {
         return null;

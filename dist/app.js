@@ -11,6 +11,8 @@ const database_1 = require("./config/database");
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const historial_routes_1 = __importDefault(require("./routes/historial.routes"));
 const roles_routes_1 = __importDefault(require("./routes/roles.routes"));
+const citas_routes_1 = __importDefault(require("./routes/citas.routes"));
+const notificaciones_routes_1 = __importDefault(require("./routes/notificaciones.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 // ─── Middlewares globales ─────────────────────────────────────────────────────
@@ -21,6 +23,8 @@ app.use(express_1.default.urlencoded({ extended: true }));
 app.use('/api/auth', auth_routes_1.default);
 app.use('/api/historial', historial_routes_1.default);
 app.use('/api/roles', roles_routes_1.default);
+app.use('/api/citas', citas_routes_1.default);
+app.use('/api/notificaciones', notificaciones_routes_1.default);
 // ─── Ruta base ────────────────────────────────────────────────────────────────
 app.get('/', (_req, res) => {
     res.json({ ok: true, mensaje: 'API Brasilios funcionando ✅' });

@@ -324,7 +324,8 @@ export async function registro(
   // Encriptar contraseña
   const hash = await bcrypt.hash(password, 12);
 
-  // Obtener rol 'empleado' por defecto (id = 3)
+  // Obtener rol por defecto.
+  // Si el correo es corporativo, se registra como empleado; de lo contrario, cliente.
   const esEmpleado = correo.endsWith('@brasilios.com');
   const rolNombre  = esEmpleado ? 'empleado' : 'cliente';
 
@@ -332,7 +333,7 @@ export async function registro(
   `SELECT id FROM roles WHERE nombre = ? LIMIT 1`,
   [rolNombre]
 );
-const rolId = rolRows.length > 0 ? rolRows[0].id : 3;
+  const rolId = rolRows.length > 0 ? rolRows[0].id : 3;
 
   // Insertar usuario
   const [result] = await pool.query<ResultSetHeader>(
@@ -353,7 +354,7 @@ const rolId = rolRows.length > 0 ? rolRows[0].id : 3;
   });
 
   // Generar tokens
-  const accessToken  = generarAccessToken({ sub: usuarioId, rol: 'empleado', correo });
+  const accessToken  = generarAccessToken({ sub: usuarioId, rol: rolNombre, correo });
   const refreshToken = generarRefreshToken(usuarioId);
 
   return { accessToken, refreshToken, rol: rolNombre  };

@@ -1,9 +1,9 @@
 -- =============================================
--- ESQUEMA DE BASE DE DATOS: auth_db
+-- ESQUEMA DE BASE DE DATOS: brasilios_db
 -- =============================================
 
-CREATE DATABASE IF NOT EXISTS auth_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE auth_db;
+CREATE DATABASE IF NOT EXISTS brasilios_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE brasilios_db;
 
 -- ---------------------------------------------
 -- Tabla de roles
@@ -103,7 +103,8 @@ CREATE TABLE historial_cambios (
 INSERT INTO roles (nombre, descripcion) VALUES
   ('administrador', 'Acceso total al sistema'),
   ('dueña',         'Propietaria con acceso administrativo'),
-  ('empleado',      'Acceso limitado a módulos operativos');
+  ('empleado',      'Acceso limitado a módulos operativos'),
+  ('cliente',       'Cliente final del sistema');
 
 INSERT INTO permisos (modulo, accion, descripcion) VALUES
   ('usuarios',  'crear',    'Crear nuevos usuarios'),
@@ -111,7 +112,12 @@ INSERT INTO permisos (modulo, accion, descripcion) VALUES
   ('usuarios',  'eliminar', 'Eliminar usuarios'),
   ('usuarios',  'ver',      'Ver listado de usuarios'),
   ('roles',     'gestionar','Gestionar roles y permisos'),
-  ('historial', 'ver',      'Ver historial de cambios');
+  ('historial', 'ver',      'Ver historial de cambios'),
+  ('citas',     'crear',    'Crear citas'),
+  ('citas',     'editar',   'Modificar citas'),
+  ('citas',     'cancelar', 'Cancelar citas'),
+  ('citas',     'ver',      'Visualizar citas'),
+  ('notificaciones', 'ver', 'Visualizar notificaciones');
 
 -- Rol administrador: todos los permisos
 INSERT INTO rol_permisos (rol_id, permiso_id)
@@ -124,3 +130,75 @@ SELECT 2, id FROM permisos;
 -- Rol empleado: solo ver
 INSERT INTO rol_permisos (rol_id, permiso_id)
 SELECT 3, id FROM permisos WHERE accion = 'ver';
+
+-- Rol cliente: ver, crear, editar y cancelar citas + ver notificaciones
+INSERT INTO rol_permisos (rol_id, permiso_id)
+SELECT 4, id
+FROM permisos
+WHERE (modulo = 'citas' AND accion IN ('crear', 'editar', 'cancelar', 'ver'))
+   OR (modulo = 'notificaciones' AND accion = 'ver');
+
+-- ---------------------------------------------
+-- Tabla de servicios (módulo de citas)
+-- ---------------------------------------------
+CREATE TABLE servicios (
+  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  nombre      VARCHAR(120) NOT NULL,
+  descripcion TEXT NULL,
+  precio      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  duracion    INT NOT NULL COMMENT 'Duración en minutos',
+  activo      TINYINT(1) DEFAULT 1,
+  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- ---------------------------------------------
+-- Tabla de citas
+-- ---------------------------------------------
+CREATE TABLE citas (
+  id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  cliente_id   INT UNSIGNED NOT NULL,
+  barbero_id   INT UNSIGNED NOT NULL,
+  servicio_id  INT UNSIGNED NOT NULL,
+  fecha        DATE NOT NULL,
+  hora_inicio  TIME NOT NULL,
+  hora_fin     TIME NOT NULL,
+  estado       ENUM('pendiente','confirmada','atendida','cancelada') NOT NULL DEFAULT 'pendiente',
+  observaciones TEXT NULL,
+  creado_por   INT UNSIGNED NOT NULL,
+  created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (cliente_id) REFERENCES usuarios(id),
+  FOREIGN KEY (barbero_id) REFERENCES usuarios(id),
+  FOREIGN KEY (servicio_id) REFERENCES servicios(id),
+  FOREIGN KEY (creado_por) REFERENCES usuarios(id),
+  INDEX idx_cita_barbero_fecha (barbero_id, fecha, hora_inicio),
+  INDEX idx_cita_cliente_fecha (cliente_id, fecha, hora_inicio)
+);
+
+-- ---------------------------------------------
+-- Tabla de notificaciones internas
+-- ---------------------------------------------
+CREATE TABLE notificaciones (
+  id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  usuario_id     INT UNSIGNED NOT NULL,
+  tipo           ENUM('CITA_MODIFICADA','CITA_CANCELADA','RECORDATORIO_CITA') NOT NULL,
+  titulo         VARCHAR(160) NOT NULL,
+  mensaje        TEXT NOT NULL,
+  referencia_tipo VARCHAR(50) DEFAULT 'cita',
+  referencia_id  INT UNSIGNED NULL,
+  leida          TINYINT(1) DEFAULT 0,
+  created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+  INDEX idx_notif_usuario_leida (usuario_id, leida, created_at)
+);
+
+-- ---------------------------------------------
+-- Tabla de control de recordatorios enviados
+-- ---------------------------------------------
+CREATE TABLE cita_recordatorios (
+  id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  cita_id    INT UNSIGNED NOT NULL UNIQUE,
+  enviado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (cita_id) REFERENCES citas(id) ON DELETE CASCADE
+);

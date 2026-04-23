@@ -7,6 +7,33 @@ const JWT_EXPIRES_IN     = process.env.JWT_EXPIRES_IN       || '1h';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET   || 'refresh_secret';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
+function isAppJwtPayload(value: unknown): value is JwtPayload {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const payload = value as Record<string, unknown>;
+  return typeof payload.sub === 'number'
+    && typeof payload.jti === 'string'
+    && typeof payload.rol === 'string'
+    && typeof payload.correo === 'string';
+}
+
+interface RefreshJwtPayload {
+  sub: number;
+  jti: string;
+  iat?: number;
+  exp?: number;
+}
+
+function isRefreshJwtPayload(value: unknown): value is RefreshJwtPayload {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const payload = value as Record<string, unknown>;
+  return typeof payload.sub === 'number' && typeof payload.jti === 'string';
+}
+
 export function generarAccessToken(payload: Omit<JwtPayload, 'jti' | 'iat' | 'exp'>): string {
   const jti = uuidv4();
   return jwt.sign({ ...payload, jti }, JWT_SECRET, {
@@ -21,16 +48,28 @@ export function generarRefreshToken(usuarioId: number): string {
 }
 
 export function verificarAccessToken(token: string): JwtPayload {
-  return jwt.verify(token, JWT_SECRET) as JwtPayload;
+  const decoded = jwt.verify(token, JWT_SECRET);
+  if (typeof decoded === 'string' || !isAppJwtPayload(decoded)) {
+    throw new Error('Token inválido');
+  }
+  return decoded;
 }
 
-export function verificarRefreshToken(token: string): JwtPayload {
-  return jwt.verify(token, JWT_REFRESH_SECRET) as JwtPayload;
+export function verificarRefreshToken(token: string): RefreshJwtPayload {
+  const decoded = jwt.verify(token, JWT_REFRESH_SECRET);
+  if (typeof decoded === 'string' || !isRefreshJwtPayload(decoded)) {
+    throw new Error('Token inválido');
+  }
+  return decoded;
 }
 
 export function decodificarToken(token: string): JwtPayload | null {
   try {
-    return jwt.decode(token) as JwtPayload;
+    const decoded = jwt.decode(token);
+    if (!decoded || typeof decoded === 'string' || !isAppJwtPayload(decoded)) {
+      return null;
+    }
+    return decoded;
   } catch {
     return null;
   }

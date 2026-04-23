@@ -213,7 +213,8 @@ async function registro(nombre, correo, password, ip, userAgent) {
     }
     // Encriptar contraseña
     const hash = await bcryptjs_1.default.hash(password, 12);
-    // Obtener rol 'empleado' por defecto (id = 3)
+    // Obtener rol por defecto.
+    // Si el correo es corporativo, se registra como empleado; de lo contrario, cliente.
     const esEmpleado = correo.endsWith('@brasilios.com');
     const rolNombre = esEmpleado ? 'empleado' : 'cliente';
     const [rolRows] = await database_1.pool.query(`SELECT id FROM roles WHERE nombre = ? LIMIT 1`, [rolNombre]);
@@ -231,7 +232,7 @@ async function registro(nombre, correo, password, ip, userAgent) {
         user_agent: userAgent,
     });
     // Generar tokens
-    const accessToken = (0, jwt_1.generarAccessToken)({ sub: usuarioId, rol: 'empleado', correo });
+    const accessToken = (0, jwt_1.generarAccessToken)({ sub: usuarioId, rol: rolNombre, correo });
     const refreshToken = (0, jwt_1.generarRefreshToken)(usuarioId);
     return { accessToken, refreshToken, rol: rolNombre };
 }

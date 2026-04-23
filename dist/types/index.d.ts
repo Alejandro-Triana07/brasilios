@@ -66,4 +66,30 @@ export interface FiltroHistorial {
     pagina?: number;
     limite?: number;
 }
+export type EstadoCita = 'pendiente' | 'confirmada' | 'atendida' | 'cancelada';
+export interface Cita {
+    id: number;
+    cliente_id: number;
+    barbero_id: number;
+    servicio_id: number;
+    fecha: string;
+    hora_inicio: string;
+    hora_fin: string;
+    estado: EstadoCita;
+    observaciones?: string | null;
+    creado_por: number;
+    created_at: Date;
+    updated_at: Date;
+}
+export interface Notificacion {
+    id: number;
+    usuario_id: number;
+    tipo: 'CITA_MODIFICADA' | 'CITA_CANCELADA' | 'RECORDATORIO_CITA';
+    titulo: string;
+    mensaje: string;
+    referencia_tipo: string;
+    referencia_id: number;
+    leida: boolean;
+    created_at: Date;
+}
 //# sourceMappingURL=index.d.ts.map

@@ -67,3 +67,36 @@ export const registroSchema = z.object({
   message: 'Las contraseñas no coinciden',
   path: ['confirmar_password'],
 });
+
+export const crearCitaSchema = z.object({
+  cliente_id: z.number().int().positive('El cliente es requerido'),
+  servicio_id: z.number().int().positive('El servicio es requerido'),
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD'),
+  hora: z.string().regex(/^\d{2}:\d{2}$/, 'La hora debe tener formato HH:mm'),
+  barbero_id: z.number().int().positive().optional(),
+  observaciones: z.string().max(500).optional(),
+});
+
+export const modificarCitaSchema = z.object({
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD').optional(),
+  hora: z.string().regex(/^\d{2}:\d{2}$/, 'La hora debe tener formato HH:mm').optional(),
+  barbero_id: z.number().int().positive().optional(),
+  servicio_id: z.number().int().positive().optional(),
+  observaciones: z.string().max(500).optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+  message: 'Debe enviar al menos un campo para modificar',
+});
+
+export const cancelarCitaSchema = z.object({
+  confirmar: z.boolean(),
+}).refine((data) => data.confirmar === true, {
+  message: 'Debe confirmar la cancelación de la cita',
+  path: ['confirmar'],
+});
+
+export const disponibilidadSchema = z.object({
+  fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD'),
+  hora: z.string().regex(/^\d{2}:\d{2}$/, 'La hora debe tener formato HH:mm'),
+  servicio_id: z.coerce.number().int().positive('El servicio es requerido'),
+  barbero_id: z.coerce.number().int().positive().optional(),
+});

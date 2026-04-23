@@ -7,6 +7,8 @@ import { testConnection } from './config/database';
 import authRoutes     from './routes/auth.routes';
 import historialRoutes from './routes/historial.routes';
 import rolesRoutes    from './routes/roles.routes';
+import citasRoutes from './routes/citas.routes';
+import notificacionesRoutes from './routes/notificaciones.routes';
 
 dotenv.config();
 
@@ -21,6 +23,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth',      authRoutes);
 app.use('/api/historial', historialRoutes);
 app.use('/api/roles',     rolesRoutes);
+app.use('/api/citas',     citasRoutes);
+app.use('/api/notificaciones', notificacionesRoutes);
 
 // ─── Ruta base ────────────────────────────────────────────────────────────────
 app.get('/', (_req, res) => {

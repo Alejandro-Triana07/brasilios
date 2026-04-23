@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.registroSchema = exports.actualizarPermisosSchema = exports.asignarRolSchema = exports.resetearPasswordSchema = exports.verificarCodigoSchema = exports.solicitarRecuperacionSchema = exports.loginSchema = void 0;
+exports.disponibilidadSchema = exports.cancelarCitaSchema = exports.modificarCitaSchema = exports.crearCitaSchema = exports.registroSchema = exports.actualizarPermisosSchema = exports.asignarRolSchema = exports.resetearPasswordSchema = exports.verificarCodigoSchema = exports.solicitarRecuperacionSchema = exports.loginSchema = void 0;
 exports.validar = validar;
 const zod_1 = require("zod");
 const response_1 = require("../utils/response");
@@ -59,5 +59,34 @@ exports.registroSchema = zod_1.z.object({
 }).refine(data => data.password === data.confirmar_password, {
     message: 'Las contraseñas no coinciden',
     path: ['confirmar_password'],
+});
+exports.crearCitaSchema = zod_1.z.object({
+    cliente_id: zod_1.z.number().int().positive('El cliente es requerido'),
+    servicio_id: zod_1.z.number().int().positive('El servicio es requerido'),
+    fecha: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD'),
+    hora: zod_1.z.string().regex(/^\d{2}:\d{2}$/, 'La hora debe tener formato HH:mm'),
+    barbero_id: zod_1.z.number().int().positive().optional(),
+    observaciones: zod_1.z.string().max(500).optional(),
+});
+exports.modificarCitaSchema = zod_1.z.object({
+    fecha: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD').optional(),
+    hora: zod_1.z.string().regex(/^\d{2}:\d{2}$/, 'La hora debe tener formato HH:mm').optional(),
+    barbero_id: zod_1.z.number().int().positive().optional(),
+    servicio_id: zod_1.z.number().int().positive().optional(),
+    observaciones: zod_1.z.string().max(500).optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+    message: 'Debe enviar al menos un campo para modificar',
+});
+exports.cancelarCitaSchema = zod_1.z.object({
+    confirmar: zod_1.z.boolean(),
+}).refine((data) => data.confirmar === true, {
+    message: 'Debe confirmar la cancelación de la cita',
+    path: ['confirmar'],
+});
+exports.disponibilidadSchema = zod_1.z.object({
+    fecha: zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato YYYY-MM-DD'),
+    hora: zod_1.z.string().regex(/^\d{2}:\d{2}$/, 'La hora debe tener formato HH:mm'),
+    servicio_id: zod_1.z.coerce.number().int().positive('El servicio es requerido'),
+    barbero_id: zod_1.z.coerce.number().int().positive().optional(),
 });
 //# sourceMappingURL=validar.middleware.js.map
