@@ -1,6 +1,7 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { testConnection } from './config/database';
 
 // Rutas
 import authRoutes     from './routes/auth.routes';
@@ -27,10 +28,19 @@ app.get('/', (_req, res) => {
 });
 
 // ─── Servidor ─────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+async function bootstrap(): Promise<void> {
+  await testConnection();
+
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+  });
+}
+
+bootstrap().catch((error) => {
+  console.error('No se pudo iniciar la API:', error);
+  process.exit(1);
 });
 
 export default app;

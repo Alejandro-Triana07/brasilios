@@ -1,0 +1,52 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const RolesController = __importStar(require("../controllers/roles.controller"));
+const auth_middleware_1 = require("../middlewares/auth.middleware");
+const validar_middleware_1 = require("../middlewares/validar.middleware");
+const router = (0, express_1.Router)();
+// Todas las rutas de roles requieren autenticación + rol admin/dueña
+router.use(auth_middleware_1.autenticar, (0, auth_middleware_1.soloRoles)('administrador', 'dueña'));
+// GET /roles
+router.get('/', RolesController.listarRoles);
+// GET /roles/permisos
+router.get('/permisos', RolesController.listarPermisos);
+// PUT /roles/asignar — asignar rol a un usuario
+router.put('/asignar', (0, auth_middleware_1.requierePermiso)('roles', 'gestionar'), (0, validar_middleware_1.validar)(validar_middleware_1.asignarRolSchema), RolesController.asignarRolUsuario);
+// PUT /roles/:id/permisos — actualizar permisos de un rol
+router.put('/:id/permisos', (0, auth_middleware_1.requierePermiso)('roles', 'gestionar'), (0, validar_middleware_1.validar)(validar_middleware_1.actualizarPermisosSchema), RolesController.actualizarPermisosRol);
+exports.default = router;
+//# sourceMappingURL=roles.routes.js.map
