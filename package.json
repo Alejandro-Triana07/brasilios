@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc",
-    "start": "node dist/app.js"
+    "start": "node dist/app.js",
+    "db:init": "node scripts/init-db.js",
+    "db:seed": "node scripts/seed-db.js",
+    "db:setup": "npm run db:init && npm run db:seed"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
