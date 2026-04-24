@@ -73,6 +73,15 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('Error ejecutando seed:', error.message);
+  const isConnRefused = error?.code === 'ECONNREFUSED'
+    || (Array.isArray(error?.errors) && error.errors.some((e) => e?.code === 'ECONNREFUSED'));
+
+  if (isConnRefused) {
+    console.error('No se pudo conectar a MySQL para ejecutar seed.');
+    console.error('Enciende MySQL y verifica DB_HOST/DB_PORT/DB_USER/DB_PASSWORD.');
+    console.error('Sugerencia rápida: usa DB_HOST=127.0.0.1 en lugar de localhost.');
+  } else {
+    console.error('Error ejecutando seed:', error.message);
+  }
   process.exit(1);
 });

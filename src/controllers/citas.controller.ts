@@ -2,6 +2,26 @@ import { Request, Response } from 'express';
 import { CitasService } from '../services/citas.service';
 import * as R from '../utils/response';
 
+export async function listarCitas(req: Request, res: Response): Promise<void> {
+  try {
+    const citas = await CitasService.listarCitas(req.usuario!.id, req.usuario!.rol);
+    R.ok(res, 'Citas obtenidas correctamente', citas);
+  } catch (err: any) {
+    R.serverError(res, err.message);
+  }
+}
+
+export async function obtenerCita(req: Request, res: Response): Promise<void> {
+  try {
+    const cita = await CitasService.obtenerCitaPorId(Number(req.params.id), req.usuario!.id, req.usuario!.rol);
+    R.ok(res, 'Cita obtenida correctamente', cita);
+  } catch (err: any) {
+    const status = err.status || 500;
+    if (status === 404) R.notFound(res, err.message);
+    else R.serverError(res, err.message);
+  }
+}
+
 export async function crearCita(req: Request, res: Response): Promise<void> {
   try {
     const { cliente_id, servicio_id, fecha, hora, barbero_id, observaciones } = req.body;
@@ -110,5 +130,17 @@ export async function ejecutarRecordatorios(req: Request, res: Response): Promis
     R.ok(res, 'Recordatorios procesados', result);
   } catch (err: any) {
     R.serverError(res, err.message);
+  }
+}
+
+export async function eliminarCita(req: Request, res: Response): Promise<void> {
+  try {
+    await CitasService.eliminarCita(Number(req.params.id), req.usuario!.id, req.usuario!.rol);
+    R.ok(res, 'Cita eliminada correctamente');
+  } catch (err: any) {
+    const status = err.status || 500;
+    if (status === 400) R.badRequest(res, err.message);
+    else if (status === 404) R.notFound(res, err.message);
+    else R.serverError(res, err.message);
   }
 }

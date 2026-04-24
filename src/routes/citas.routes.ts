@@ -9,10 +9,13 @@ router.use(autenticar);
 
 router.get('/disponibilidad', CitasController.validarDisponibilidad);
 router.get('/barberos-disponibles', CitasController.listarBarberosDisponibles);
+router.get('/', CitasController.listarCitas);
+router.get('/:id', CitasController.obtenerCita);
 
 router.post('/', validar(crearCitaSchema), CitasController.crearCita);
 router.put('/:id', validar(modificarCitaSchema), CitasController.modificarCita);
 router.post('/:id/cancelar', validar(cancelarCitaSchema), CitasController.cancelarCita);
+router.delete('/:id', CitasController.eliminarCita);
 
 router.post('/recordatorios/ejecutar', CitasController.ejecutarRecordatorios);
 

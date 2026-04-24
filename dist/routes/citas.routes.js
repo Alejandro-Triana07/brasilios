@@ -41,9 +41,12 @@ const router = (0, express_1.Router)();
 router.use(auth_middleware_1.autenticar);
 router.get('/disponibilidad', CitasController.validarDisponibilidad);
 router.get('/barberos-disponibles', CitasController.listarBarberosDisponibles);
+router.get('/', CitasController.listarCitas);
+router.get('/:id', CitasController.obtenerCita);
 router.post('/', (0, validar_middleware_1.validar)(validar_middleware_1.crearCitaSchema), CitasController.crearCita);
 router.put('/:id', (0, validar_middleware_1.validar)(validar_middleware_1.modificarCitaSchema), CitasController.modificarCita);
 router.post('/:id/cancelar', (0, validar_middleware_1.validar)(validar_middleware_1.cancelarCitaSchema), CitasController.cancelarCita);
+router.delete('/:id', CitasController.eliminarCita);
 router.post('/recordatorios/ejecutar', CitasController.ejecutarRecordatorios);
 exports.default = router;
 //# sourceMappingURL=citas.routes.js.map

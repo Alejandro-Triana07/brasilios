@@ -33,14 +33,39 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.listarCitas = listarCitas;
+exports.obtenerCita = obtenerCita;
 exports.crearCita = crearCita;
 exports.validarDisponibilidad = validarDisponibilidad;
 exports.listarBarberosDisponibles = listarBarberosDisponibles;
 exports.modificarCita = modificarCita;
 exports.cancelarCita = cancelarCita;
 exports.ejecutarRecordatorios = ejecutarRecordatorios;
+exports.eliminarCita = eliminarCita;
 const citas_service_1 = require("../services/citas.service");
 const R = __importStar(require("../utils/response"));
+async function listarCitas(req, res) {
+    try {
+        const citas = await citas_service_1.CitasService.listarCitas(req.usuario.id, req.usuario.rol);
+        R.ok(res, 'Citas obtenidas correctamente', citas);
+    }
+    catch (err) {
+        R.serverError(res, err.message);
+    }
+}
+async function obtenerCita(req, res) {
+    try {
+        const cita = await citas_service_1.CitasService.obtenerCitaPorId(Number(req.params.id), req.usuario.id, req.usuario.rol);
+        R.ok(res, 'Cita obtenida correctamente', cita);
+    }
+    catch (err) {
+        const status = err.status || 500;
+        if (status === 404)
+            R.notFound(res, err.message);
+        else
+            R.serverError(res, err.message);
+    }
+}
 async function crearCita(req, res) {
     try {
         const { cliente_id, servicio_id, fecha, hora, barbero_id, observaciones } = req.body;
@@ -156,6 +181,21 @@ async function ejecutarRecordatorios(req, res) {
     }
     catch (err) {
         R.serverError(res, err.message);
+    }
+}
+async function eliminarCita(req, res) {
+    try {
+        await citas_service_1.CitasService.eliminarCita(Number(req.params.id), req.usuario.id, req.usuario.rol);
+        R.ok(res, 'Cita eliminada correctamente');
+    }
+    catch (err) {
+        const status = err.status || 500;
+        if (status === 400)
+            R.badRequest(res, err.message);
+        else if (status === 404)
+            R.notFound(res, err.message);
+        else
+            R.serverError(res, err.message);
     }
 }
 //# sourceMappingURL=citas.controller.js.map

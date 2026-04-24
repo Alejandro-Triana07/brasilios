@@ -27,6 +27,41 @@ function ensureFutureDateTime(fecha, hora) {
     }
 }
 class CitasService {
+    static async listarCitas(usuarioId, rolUsuario) {
+        const esAdmin = ['administrador', 'dueña', 'empleado'].includes(rolUsuario);
+        const where = esAdmin ? '' : 'WHERE c.cliente_id = ?';
+        const params = esAdmin ? [] : [usuarioId];
+        const [rows] = await database_1.pool.query(`SELECT c.id, c.fecha, c.hora_inicio, c.hora_fin, c.estado, c.observaciones, c.created_at,
+              cli.id AS cliente_id, cli.nombre AS cliente_nombre,
+              b.id AS barbero_id, b.nombre AS barbero_nombre,
+              s.id AS servicio_id, s.nombre AS servicio_nombre, s.duracion AS servicio_duracion
+       FROM citas c
+       JOIN usuarios cli ON cli.id = c.cliente_id
+       JOIN usuarios b ON b.id = c.barbero_id
+       JOIN servicios s ON s.id = c.servicio_id
+       ${where}
+       ORDER BY c.fecha DESC, c.hora_inicio DESC`, params);
+        return rows;
+    }
+    static async obtenerCitaPorId(citaId, usuarioId, rolUsuario) {
+        const esAdmin = ['administrador', 'dueña', 'empleado'].includes(rolUsuario);
+        const where = esAdmin ? 'c.id = ?' : 'c.id = ? AND c.cliente_id = ?';
+        const params = esAdmin ? [citaId] : [citaId, usuarioId];
+        const [rows] = await database_1.pool.query(`SELECT c.id, c.fecha, c.hora_inicio, c.hora_fin, c.estado, c.observaciones, c.created_at,
+              cli.id AS cliente_id, cli.nombre AS cliente_nombre,
+              b.id AS barbero_id, b.nombre AS barbero_nombre,
+              s.id AS servicio_id, s.nombre AS servicio_nombre, s.duracion AS servicio_duracion
+       FROM citas c
+       JOIN usuarios cli ON cli.id = c.cliente_id
+       JOIN usuarios b ON b.id = c.barbero_id
+       JOIN servicios s ON s.id = c.servicio_id
+       WHERE ${where}
+       LIMIT 1`, params);
+        if (rows.length === 0) {
+            throw { status: 404, message: 'Cita no encontrada' };
+        }
+        return rows[0];
+    }
     static async validarDisponibilidad(fecha, hora, servicioId, barberoId, citaExcluirId) {
         ensureFutureDateTime(fecha, hora);
         const [servicioRows] = await database_1.pool.query(`SELECT id, duracion FROM servicios WHERE id = ? AND activo = 1`, [servicioId]);
@@ -227,6 +262,20 @@ class CitasService {
             datos_despues: { estado: 'cancelada' },
         });
         await this.notificarCambioCita(citaId, 'CITA_CANCELADA', Number(cita.barbero_id));
+    }
+    static async eliminarCita(citaId, usuarioSolicitanteId, rolUsuario) {
+        const cita = await this.obtenerCitaPorId(citaId, usuarioSolicitanteId, rolUsuario);
+        if (cita.estado === 'atendida') {
+            throw { status: 400, message: 'No se puede eliminar una cita atendida' };
+        }
+        await database_1.pool.query(`DELETE FROM citas WHERE id = ?`, [citaId]);
+        await historial_service_1.HistorialService.registrar({
+            usuario_id: usuarioSolicitanteId,
+            accion: 'ELIMINAR',
+            modulo: 'citas',
+            descripcion: `Cita #${citaId} eliminada`,
+            datos_antes: { cita_id: citaId, estado: cita.estado },
+        });
     }
     static async notificarCambioCita(citaId, tipo, barberoId) {
         const [admins] = await database_1.pool.query(`SELECT u.id

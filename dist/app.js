@@ -29,6 +29,23 @@ app.use('/api/notificaciones', notificaciones_routes_1.default);
 app.get('/', (_req, res) => {
     res.json({ ok: true, mensaje: 'API Brasilios funcionando ✅' });
 });
+app.get('/api/health/db', async (_req, res) => {
+    try {
+        const [rows] = await database_1.pool.query('SELECT DATABASE() AS db, NOW() AS server_time');
+        res.status(200).json({
+            ok: true,
+            mensaje: 'Conexión a DB activa',
+            data: rows,
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            ok: false,
+            mensaje: 'Error de conexión con DB',
+            error: error instanceof Error ? error.message : 'Error desconocido',
+        });
+    }
+});
 // ─── Servidor ─────────────────────────────────────────────────────────────────
 const PORT = Number(process.env.PORT || 3000);
 async function bootstrap() {

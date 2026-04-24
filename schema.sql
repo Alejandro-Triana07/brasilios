@@ -8,7 +8,7 @@ USE brasilios_db;
 -- ---------------------------------------------
 -- Tabla de roles
 -- ---------------------------------------------
-CREATE TABLE roles (
+CREATE TABLE IF NOT EXISTS roles (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   nombre      VARCHAR(50) NOT NULL UNIQUE,
   descripcion VARCHAR(255),
@@ -18,7 +18,7 @@ CREATE TABLE roles (
 -- ---------------------------------------------
 -- Tabla de permisos
 -- ---------------------------------------------
-CREATE TABLE permisos (
+CREATE TABLE IF NOT EXISTS permisos (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   modulo      VARCHAR(100) NOT NULL,
   accion      VARCHAR(100) NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE permisos (
 -- ---------------------------------------------
 -- Tabla de relación rol - permiso
 -- ---------------------------------------------
-CREATE TABLE rol_permisos (
+CREATE TABLE IF NOT EXISTS rol_permisos (
   rol_id     INT UNSIGNED NOT NULL,
   permiso_id INT UNSIGNED NOT NULL,
   PRIMARY KEY (rol_id, permiso_id),
@@ -40,7 +40,7 @@ CREATE TABLE rol_permisos (
 -- ---------------------------------------------
 -- Tabla de usuarios
 -- ---------------------------------------------
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
   id                    INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   nombre                VARCHAR(150) NOT NULL,
   correo                VARCHAR(255) NOT NULL UNIQUE,
@@ -58,7 +58,7 @@ CREATE TABLE usuarios (
 -- ---------------------------------------------
 -- Tabla de tokens de recuperación de contraseña
 -- ---------------------------------------------
-CREATE TABLE reset_tokens (
+CREATE TABLE IF NOT EXISTS reset_tokens (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   usuario_id  INT UNSIGNED NOT NULL,
   codigo      VARCHAR(10)  NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE reset_tokens (
 -- ---------------------------------------------
 -- Tabla de tokens revocados (blacklist JWT)
 -- ---------------------------------------------
-CREATE TABLE tokens_revocados (
+CREATE TABLE IF NOT EXISTS tokens_revocados (
   id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   jti        VARCHAR(36)  NOT NULL UNIQUE,
   usuario_id INT UNSIGNED NOT NULL,
@@ -83,7 +83,7 @@ CREATE TABLE tokens_revocados (
 -- ---------------------------------------------
 -- Tabla de historial de cambios (auditoría)
 -- ---------------------------------------------
-CREATE TABLE historial_cambios (
+CREATE TABLE IF NOT EXISTS historial_cambios (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   usuario_id   INT UNSIGNED NULL,
   accion       ENUM('CREAR','MODIFICAR','ELIMINAR','LOGIN','LOGOUT','BLOQUEO','RESET_PASSWORD') NOT NULL,
@@ -100,13 +100,13 @@ CREATE TABLE historial_cambios (
 -- ---------------------------------------------
 -- Datos iniciales
 -- ---------------------------------------------
-INSERT INTO roles (nombre, descripcion) VALUES
+INSERT IGNORE INTO roles (nombre, descripcion) VALUES
   ('administrador', 'Acceso total al sistema'),
   ('dueña',         'Propietaria con acceso administrativo'),
   ('empleado',      'Acceso limitado a módulos operativos'),
   ('cliente',       'Cliente final del sistema');
 
-INSERT INTO permisos (modulo, accion, descripcion) VALUES
+INSERT IGNORE INTO permisos (modulo, accion, descripcion) VALUES
   ('usuarios',  'crear',    'Crear nuevos usuarios'),
   ('usuarios',  'editar',   'Editar usuarios existentes'),
   ('usuarios',  'eliminar', 'Eliminar usuarios'),
@@ -120,19 +120,19 @@ INSERT INTO permisos (modulo, accion, descripcion) VALUES
   ('notificaciones', 'ver', 'Visualizar notificaciones');
 
 -- Rol administrador: todos los permisos
-INSERT INTO rol_permisos (rol_id, permiso_id)
+INSERT IGNORE INTO rol_permisos (rol_id, permiso_id)
 SELECT 1, id FROM permisos;
 
 -- Rol dueña: todos los permisos
-INSERT INTO rol_permisos (rol_id, permiso_id)
+INSERT IGNORE INTO rol_permisos (rol_id, permiso_id)
 SELECT 2, id FROM permisos;
 
 -- Rol empleado: solo ver
-INSERT INTO rol_permisos (rol_id, permiso_id)
+INSERT IGNORE INTO rol_permisos (rol_id, permiso_id)
 SELECT 3, id FROM permisos WHERE accion = 'ver';
 
 -- Rol cliente: ver, crear, editar y cancelar citas + ver notificaciones
-INSERT INTO rol_permisos (rol_id, permiso_id)
+INSERT IGNORE INTO rol_permisos (rol_id, permiso_id)
 SELECT 4, id
 FROM permisos
 WHERE (modulo = 'citas' AND accion IN ('crear', 'editar', 'cancelar', 'ver'))
@@ -141,7 +141,7 @@ WHERE (modulo = 'citas' AND accion IN ('crear', 'editar', 'cancelar', 'ver'))
 -- ---------------------------------------------
 -- Tabla de servicios (módulo de citas)
 -- ---------------------------------------------
-CREATE TABLE servicios (
+CREATE TABLE IF NOT EXISTS servicios (
   id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   nombre      VARCHAR(120) NOT NULL,
   descripcion TEXT NULL,
@@ -155,7 +155,7 @@ CREATE TABLE servicios (
 -- ---------------------------------------------
 -- Tabla de citas
 -- ---------------------------------------------
-CREATE TABLE citas (
+CREATE TABLE IF NOT EXISTS citas (
   id           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   cliente_id   INT UNSIGNED NOT NULL,
   barbero_id   INT UNSIGNED NOT NULL,
@@ -179,7 +179,7 @@ CREATE TABLE citas (
 -- ---------------------------------------------
 -- Tabla de notificaciones internas
 -- ---------------------------------------------
-CREATE TABLE notificaciones (
+CREATE TABLE IF NOT EXISTS notificaciones (
   id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   usuario_id     INT UNSIGNED NOT NULL,
   tipo           ENUM('CITA_MODIFICADA','CITA_CANCELADA','RECORDATORIO_CITA') NOT NULL,
@@ -196,7 +196,7 @@ CREATE TABLE notificaciones (
 -- ---------------------------------------------
 -- Tabla de control de recordatorios enviados
 -- ---------------------------------------------
-CREATE TABLE cita_recordatorios (
+CREATE TABLE IF NOT EXISTS cita_recordatorios (
   id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   cita_id    INT UNSIGNED NOT NULL UNIQUE,
   enviado_en DATETIME DEFAULT CURRENT_TIMESTAMP,
