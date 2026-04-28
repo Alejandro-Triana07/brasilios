@@ -3,10 +3,10 @@ export declare function login(correo: string, password: string, ip: string, user
     refreshToken: string;
     rol: string;
 }>;
-export declare function logout(token: string, usuarioId: number, ip: string, userAgent: string): Promise<void>;
+export declare function logout(_token: string, usuarioId: number, ip: string, userAgent: string): Promise<void>;
 export declare function solicitarRecuperacion(correo: string): Promise<void>;
 export declare function verificarCodigo(correo: string, codigo: string): Promise<number>;
-export declare function resetearPassword(correo: string, codigo: string, nuevaPassword: string): Promise<void>;
+export declare function resetearPassword(correo: string, _codigo: string, nuevaPassword: string): Promise<void>;
 export declare function estaRevocado(jti: string): Promise<boolean>;
 export declare function registro(nombre: string, correo: string, password: string, ip: string, userAgent: string): Promise<{
     accessToken: string;

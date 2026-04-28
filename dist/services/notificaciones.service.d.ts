@@ -1,10 +1,9 @@
 import { Notificacion } from '../types';
 interface CrearNotificacionParams {
     usuario_id: number;
-    tipo: 'CITA_MODIFICADA' | 'CITA_CANCELADA' | 'RECORDATORIO_CITA';
+    tipo: 'RESERVA_PENDIENTE' | 'RESERVA_CONFIRMADA' | 'RESERVA_CANCELADA' | 'RECORDATORIO_RESERVA';
     titulo: string;
     mensaje: string;
-    referencia_tipo?: string;
     referencia_id?: number;
 }
 export declare class NotificacionesService {

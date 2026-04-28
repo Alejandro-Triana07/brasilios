@@ -3,52 +3,45 @@
 // =============================================
 
 export interface Usuario {
-  id: number;
+  id_usuario: number;
   nombre: string;
-  correo: string;
-  password_hash: string;
-  rol_id: number;
-  rol_nombre?: string;
-  activo: boolean;
-  intentos_fallidos: number;
-  bloqueado_hasta: Date | null;
-  ultimo_login: Date | null;
-  created_at: Date;
-  updated_at: Date;
+  apellido: string;
+  correo_electronico: string;
+  contrasena: string;
+  rol: 'admin' | 'barbero' | 'cliente';
+  estado: 'activo' | 'inactivo';
+  fecha_creacion: Date;
 }
 
 export interface Rol {
-  id: number;
+  id: string;
   nombre: string;
   descripcion?: string;
 }
 
 export interface Permiso {
-  id: number;
+  id: string;
   modulo: string;
   accion: string;
   descripcion?: string;
 }
 
 export interface ResetToken {
-  id: number;
-  usuario_id: number;
+  id: string;
+  usuario_id: string;
   codigo: string;
   expira_en: Date;
   usado: boolean;
 }
 
 export interface HistorialCambio {
-  id: number;
-  usuario_id: number | null;
-  accion: AccionHistorial;
-  modulo: string;
+  id_reporte: number;
+  id_usuario: number | null;
+  tipo: string;
+  fecha_generacion: Date;
   descripcion?: string;
-  ip_address?: string;
-  user_agent?: string;
-  datos_antes?: Record<string, unknown>;
-  datos_despues?: Record<string, unknown>;
-  created_at: Date;
+  usuario_nombre?: string;
+  usuario_correo?: string;
 }
 
 export type AccionHistorial =
@@ -86,31 +79,25 @@ export interface FiltroHistorial {
   limite?: number;
 }
 
-export type EstadoCita = 'pendiente' | 'confirmada' | 'atendida' | 'cancelada';
+export type EstadoCita = 'pendiente' | 'confirmada' | 'cancelada' | 'completada';
 
 export interface Cita {
-  id: number;
+  id_reserva: number;
   cliente_id: number;
   barbero_id: number;
-  servicio_id: number;
+  servicio_ids: number[];
   fecha: string;
-  hora_inicio: string;
-  hora_fin: string;
+  hora: string;
   estado: EstadoCita;
-  observaciones?: string | null;
-  creado_por: number;
-  created_at: Date;
-  updated_at: Date;
 }
 
 export interface Notificacion {
-  id: number;
+  id_reserva: number;
   usuario_id: number;
-  tipo: 'CITA_MODIFICADA' | 'CITA_CANCELADA' | 'RECORDATORIO_CITA';
+  tipo: 'RESERVA_PENDIENTE' | 'RESERVA_CONFIRMADA' | 'RESERVA_CANCELADA' | 'RECORDATORIO_RESERVA';
   titulo: string;
   mensaje: string;
-  referencia_tipo: string;
-  referencia_id: number;
-  leida: boolean;
-  created_at: Date;
+  leida: boolean | number;
+  fecha: string;
+  hora: string;
 }

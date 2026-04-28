@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.disponibilidadSchema = exports.cancelarCitaSchema = exports.modificarCitaSchema = exports.crearCitaSchema = exports.registroSchema = exports.actualizarPermisosSchema = exports.asignarRolSchema = exports.resetearPasswordSchema = exports.verificarCodigoSchema = exports.solicitarRecuperacionSchema = exports.loginSchema = void 0;
+exports.actualizarClienteSchema = exports.crearClienteSchema = exports.disponibilidadSchema = exports.cancelarCitaSchema = exports.modificarCitaSchema = exports.crearCitaSchema = exports.registroSchema = exports.actualizarPermisosSchema = exports.asignarRolSchema = exports.resetearPasswordSchema = exports.verificarCodigoSchema = exports.solicitarRecuperacionSchema = exports.loginSchema = void 0;
 exports.validar = validar;
 const zod_1 = require("zod");
 const response_1 = require("../utils/response");
@@ -88,5 +88,18 @@ exports.disponibilidadSchema = zod_1.z.object({
     hora: zod_1.z.string().regex(/^\d{2}:\d{2}$/, 'La hora debe tener formato HH:mm'),
     servicio_id: zod_1.z.coerce.number().int().positive('El servicio es requerido'),
     barbero_id: zod_1.z.coerce.number().int().positive().optional(),
+});
+exports.crearClienteSchema = zod_1.z.object({
+    nombre: zod_1.z.string().min(2, 'El nombre es requerido'),
+    telefono: zod_1.z.string().min(7, 'El teléfono es requerido').max(20, 'Teléfono inválido'),
+    correo: zod_1.z.string().email('Correo inválido'),
+});
+exports.actualizarClienteSchema = zod_1.z.object({
+    nombre: zod_1.z.string().min(2, 'Nombre inválido').optional(),
+    telefono: zod_1.z.string().min(7, 'Teléfono inválido').max(20, 'Teléfono inválido').optional(),
+    correo: zod_1.z.string().email('Correo inválido').optional(),
+    activo: zod_1.z.boolean().optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+    message: 'Debes enviar al menos un campo para actualizar',
 });
 //# sourceMappingURL=validar.middleware.js.map

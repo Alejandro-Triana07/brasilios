@@ -100,3 +100,18 @@ export const disponibilidadSchema = z.object({
   servicio_id: z.coerce.number().int().positive('El servicio es requerido'),
   barbero_id: z.coerce.number().int().positive().optional(),
 });
+
+export const crearClienteSchema = z.object({
+  nombre: z.string().min(2, 'El nombre es requerido'),
+  telefono: z.string().min(7, 'El teléfono es requerido').max(20, 'Teléfono inválido'),
+  correo: z.string().email('Correo inválido'),
+});
+
+export const actualizarClienteSchema = z.object({
+  nombre: z.string().min(2, 'Nombre inválido').optional(),
+  telefono: z.string().min(7, 'Teléfono inválido').max(20, 'Teléfono inválido').optional(),
+  correo: z.string().email('Correo inválido').optional(),
+  activo: z.boolean().optional(),
+}).refine((data) => Object.keys(data).length > 0, {
+  message: 'Debes enviar al menos un campo para actualizar',
+});

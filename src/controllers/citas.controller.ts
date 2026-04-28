@@ -24,7 +24,7 @@ export async function obtenerCita(req: Request, res: Response): Promise<void> {
 
 export async function crearCita(req: Request, res: Response): Promise<void> {
   try {
-    const { cliente_id, servicio_id, fecha, hora, barbero_id, observaciones } = req.body;
+    const { cliente_id, servicio_id, fecha, hora, barbero_id } = req.body;
     if (req.usuario!.rol === 'cliente' && req.usuario!.id !== cliente_id) {
       R.forbidden(res, 'Un cliente solo puede registrar citas para su propia cuenta');
       return;
@@ -36,7 +36,6 @@ export async function crearCita(req: Request, res: Response): Promise<void> {
       fecha,
       hora,
       barbero_id,
-      observaciones,
       creado_por: req.usuario!.id,
     });
 

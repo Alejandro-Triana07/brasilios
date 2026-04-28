@@ -10,7 +10,6 @@ interface CrearCitaInput {
   fecha: string;
   hora: string;
   barbero_id?: number;
-  observaciones?: string;
   creado_por: number;
 }
 
@@ -19,7 +18,6 @@ interface ModificarCitaInput {
   hora?: string;
   servicio_id?: number;
   barbero_id?: number;
-  observaciones?: string;
   actualizado_por: number;
   rol_usuario: string;
 }
@@ -52,21 +50,22 @@ function ensureFutureDateTime(fecha: string, hora: string): void {
 
 export class CitasService {
   static async listarCitas(usuarioId: number, rolUsuario: string): Promise<RowDataPacket[]> {
-    const esAdmin = ['administrador', 'dueña', 'empleado'].includes(rolUsuario);
-    const where = esAdmin ? '' : 'WHERE c.cliente_id = ?';
+    const esAdmin = ['admin', 'barbero'].includes(rolUsuario);
+    const where = esAdmin ? '' : 'WHERE r.id_cliente = ?';
     const params = esAdmin ? [] : [usuarioId];
 
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT c.id, c.fecha, c.hora_inicio, c.hora_fin, c.estado, c.observaciones, c.created_at,
-              cli.id AS cliente_id, cli.nombre AS cliente_nombre,
-              b.id AS barbero_id, b.nombre AS barbero_nombre,
-              s.id AS servicio_id, s.nombre AS servicio_nombre, s.duracion AS servicio_duracion
-       FROM citas c
-       JOIN usuarios cli ON cli.id = c.cliente_id
-       JOIN usuarios b ON b.id = c.barbero_id
-       JOIN servicios s ON s.id = c.servicio_id
+      `SELECT r.id_reserva AS id, r.fecha, r.hora AS hora_inicio, r.hora AS hora_fin, r.estado, NULL AS observaciones,
+              r.id_cliente AS cliente_id, CONCAT(cli.nombre, ' ', cli.apellido) AS cliente_nombre,
+              r.id_barbero AS barbero_id, CONCAT(b.nombre, ' ', b.apellido) AS barbero_nombre,
+              s.id_servicio AS servicio_id, s.nombre_servicio AS servicio_nombre, s.duracion AS servicio_duracion
+       FROM reserva r
+       JOIN usuario_rol cli ON cli.id_usuario = r.id_cliente
+       JOIN usuario_rol b ON b.id_usuario = r.id_barbero
+       JOIN reserva_servicio rs ON rs.id_reserva = r.id_reserva
+       JOIN servicio s ON s.id_servicio = rs.id_servicio
        ${where}
-       ORDER BY c.fecha DESC, c.hora_inicio DESC`,
+       ORDER BY r.fecha DESC, r.hora DESC`,
       params
     );
 
@@ -74,19 +73,20 @@ export class CitasService {
   }
 
   static async obtenerCitaPorId(citaId: number, usuarioId: number, rolUsuario: string): Promise<RowDataPacket> {
-    const esAdmin = ['administrador', 'dueña', 'empleado'].includes(rolUsuario);
-    const where = esAdmin ? 'c.id = ?' : 'c.id = ? AND c.cliente_id = ?';
+    const esAdmin = ['admin', 'barbero'].includes(rolUsuario);
+    const where = esAdmin ? 'r.id_reserva = ?' : 'r.id_reserva = ? AND r.id_cliente = ?';
     const params = esAdmin ? [citaId] : [citaId, usuarioId];
 
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT c.id, c.fecha, c.hora_inicio, c.hora_fin, c.estado, c.observaciones, c.created_at,
-              cli.id AS cliente_id, cli.nombre AS cliente_nombre,
-              b.id AS barbero_id, b.nombre AS barbero_nombre,
-              s.id AS servicio_id, s.nombre AS servicio_nombre, s.duracion AS servicio_duracion
-       FROM citas c
-       JOIN usuarios cli ON cli.id = c.cliente_id
-       JOIN usuarios b ON b.id = c.barbero_id
-       JOIN servicios s ON s.id = c.servicio_id
+      `SELECT r.id_reserva AS id, r.fecha, r.hora AS hora_inicio, r.hora AS hora_fin, r.estado, NULL AS observaciones,
+              r.id_cliente AS cliente_id, CONCAT(cli.nombre, ' ', cli.apellido) AS cliente_nombre,
+              r.id_barbero AS barbero_id, CONCAT(b.nombre, ' ', b.apellido) AS barbero_nombre,
+              s.id_servicio AS servicio_id, s.nombre_servicio AS servicio_nombre, s.duracion AS servicio_duracion
+       FROM reserva r
+       JOIN usuario_rol cli ON cli.id_usuario = r.id_cliente
+       JOIN usuario_rol b ON b.id_usuario = r.id_barbero
+       JOIN reserva_servicio rs ON rs.id_reserva = r.id_reserva
+       JOIN servicio s ON s.id_servicio = rs.id_servicio
        WHERE ${where}
        LIMIT 1`,
       params
@@ -109,7 +109,7 @@ export class CitasService {
     ensureFutureDateTime(fecha, hora);
 
     const [servicioRows] = await pool.query<RowDataPacket[]>(
-      `SELECT id, duracion FROM servicios WHERE id = ? AND activo = 1`,
+      `SELECT id_servicio, duracion FROM servicio WHERE id_servicio = ?`,
       [servicioId]
     );
     if (servicioRows.length === 0) {
@@ -117,10 +117,9 @@ export class CitasService {
     }
 
     const [barberoRows] = await pool.query<RowDataPacket[]>(
-      `SELECT u.id
-       FROM usuarios u
-       JOIN roles r ON r.id = u.rol_id
-       WHERE u.id = ? AND u.activo = 1 AND r.nombre IN ('empleado', 'barbero', 'administrador', 'dueña')`,
+      `SELECT id_usuario
+       FROM usuario_rol
+       WHERE id_usuario = ? AND estado = 'activo' AND rol IN ('barbero', 'admin')`,
       [barberoId]
     );
     if (barberoRows.length === 0) {
@@ -143,13 +142,15 @@ export class CitasService {
     }
 
     const query = `
-      SELECT id
-      FROM citas
-      WHERE barbero_id = ?
+      SELECT r.id_reserva AS id
+      FROM reserva r
+      JOIN reserva_servicio rs ON rs.id_reserva = r.id_reserva
+      JOIN servicio s ON s.id_servicio = rs.id_servicio
+      WHERE r.id_barbero = ?
         AND fecha = ?
         AND estado IN ('pendiente', 'confirmada')
-        AND (? < hora_fin AND ? > hora_inicio)
-        ${citaExcluirId ? 'AND id <> ?' : ''}
+        AND (? < ADDTIME(r.hora, SEC_TO_TIME(s.duracion * 60)) AND ? > r.hora)
+        ${citaExcluirId ? 'AND r.id_reserva <> ?' : ''}
       LIMIT 1
     `;
     const params: Array<number | string> = [barberoId, fecha, hora, horaFin];
@@ -181,11 +182,10 @@ export class CitasService {
     ensureFutureDateTime(fecha, hora);
 
     const [barberos] = await pool.query<RowDataPacket[]>(
-      `SELECT u.id, u.nombre, u.correo
-       FROM usuarios u
-       JOIN roles r ON r.id = u.rol_id
-       WHERE u.activo = 1 AND r.nombre IN ('empleado', 'barbero')
-       ORDER BY u.nombre ASC`
+      `SELECT id_usuario AS id, CONCAT(nombre, ' ', apellido) AS nombre, correo_electronico AS correo
+       FROM usuario_rol
+       WHERE estado = 'activo' AND rol IN ('barbero', 'admin')
+       ORDER BY nombre ASC`
     );
 
     const disponibles: Array<{ id: number; nombre: string; correo: string }> = [];
@@ -211,7 +211,7 @@ export class CitasService {
 
   static async crearCita(input: CrearCitaInput): Promise<{ id: number; mensaje: string; barbero_asignado: number }> {
     const [clienteRows] = await pool.query<RowDataPacket[]>(
-      `SELECT id FROM usuarios WHERE id = ? AND activo = 1`,
+      `SELECT id_usuario FROM usuario_rol WHERE id_usuario = ? AND rol = 'cliente' AND estado = 'activo'`,
       [input.cliente_id]
     );
     if (clienteRows.length === 0) {
@@ -238,19 +238,18 @@ export class CitasService {
     }
 
     const [result] = await pool.query<ResultSetHeader>(
-      `INSERT INTO citas
-        (cliente_id, barbero_id, servicio_id, fecha, hora_inicio, hora_fin, estado, observaciones, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`,
+      `INSERT INTO reserva (id_cliente, id_barbero, fecha, hora, estado, recordatorio)
+       VALUES (?, ?, ?, ?, 'pendiente', 0)`,
       [
         input.cliente_id,
         barberoId,
-        input.servicio_id,
         input.fecha,
         input.hora,
-        disponibilidad.hora_fin,
-        input.observaciones ?? null,
-        input.creado_por,
       ]
+    );
+    await pool.query(
+      `INSERT INTO reserva_servicio (id_reserva, id_servicio) VALUES (?, ?)`,
+      [result.insertId, input.servicio_id]
     );
 
     await HistorialService.registrar({
@@ -276,7 +275,7 @@ export class CitasService {
 
   static async modificarCita(citaId: number, input: ModificarCitaInput): Promise<void> {
     const [citaRows] = await pool.query<RowDataPacket[]>(
-      `SELECT * FROM citas WHERE id = ?`,
+      `SELECT * FROM reserva WHERE id_reserva = ?`,
       [citaId]
     );
     if (citaRows.length === 0) {
@@ -284,19 +283,23 @@ export class CitasService {
     }
 
     const cita = citaRows[0];
-    const esAdmin = ['administrador', 'dueña'].includes(input.rol_usuario);
-    if (!esAdmin && Number(cita.cliente_id) !== input.actualizado_por) {
+    const esAdmin = ['admin', 'barbero'].includes(input.rol_usuario);
+    if (!esAdmin && Number(cita.id_cliente) !== input.actualizado_por) {
       throw { status: 403, message: 'No tienes permisos para modificar esta cita' };
     }
 
-    if (cita.estado === 'cancelada' || cita.estado === 'atendida') {
+    if (cita.estado === 'cancelada' || cita.estado === 'completada') {
       throw { status: 400, message: 'No se puede modificar una cita cancelada o atendida' };
     }
 
     const fechaNueva = (input.fecha ?? cita.fecha).toString().slice(0, 10);
-    const horaNueva = (input.hora ?? cita.hora_inicio).toString().slice(0, 5);
-    const servicioNuevo = Number(input.servicio_id ?? cita.servicio_id);
-    const barberoNuevo = Number(input.barbero_id ?? cita.barbero_id);
+    const horaNueva = (input.hora ?? cita.hora).toString().slice(0, 5);
+    const [servicioRows] = await pool.query<RowDataPacket[]>(
+      `SELECT id_servicio FROM reserva_servicio WHERE id_reserva = ? LIMIT 1`,
+      [citaId]
+    );
+    const servicioNuevo = Number(input.servicio_id ?? servicioRows[0]?.id_servicio);
+    const barberoNuevo = Number(input.barbero_id ?? cita.id_barbero);
 
     ensureFutureDateTime(fechaNueva, horaNueva);
 
@@ -313,19 +316,20 @@ export class CitasService {
     }
 
     await pool.query(
-      `UPDATE citas
-       SET fecha = ?, hora_inicio = ?, hora_fin = ?, servicio_id = ?, barbero_id = ?, observaciones = ?
-       WHERE id = ?`,
+      `UPDATE reserva SET fecha = ?, hora = ?, id_barbero = ? WHERE id_reserva = ?`,
       [
         fechaNueva,
         horaNueva,
-        disponibilidad.hora_fin,
-        servicioNuevo,
         barberoNuevo,
-        input.observaciones ?? cita.observaciones ?? null,
         citaId,
       ]
     );
+    if (input.servicio_id) {
+      await pool.query(
+        `UPDATE reserva_servicio SET id_servicio = ? WHERE id_reserva = ?`,
+        [servicioNuevo, citaId]
+      );
+    }
 
     await HistorialService.registrar({
       usuario_id: input.actualizado_por,
@@ -334,9 +338,9 @@ export class CitasService {
       descripcion: `Cita #${citaId} modificada`,
       datos_antes: {
         fecha: cita.fecha,
-        hora_inicio: cita.hora_inicio,
-        servicio_id: cita.servicio_id,
-        barbero_id: cita.barbero_id,
+        hora_inicio: cita.hora,
+        servicio_id: servicioRows[0]?.id_servicio,
+        barbero_id: cita.id_barbero,
       },
       datos_despues: {
         fecha: fechaNueva,
@@ -346,7 +350,7 @@ export class CitasService {
       },
     });
 
-    await this.notificarCambioCita(citaId, 'CITA_MODIFICADA', barberoNuevo);
+    await this.notificarCambioCita(citaId, 'RESERVA_CONFIRMADA', barberoNuevo);
   }
 
   static async cancelarCita(
@@ -356,7 +360,7 @@ export class CitasService {
     estadoFinal: EstadoCita = 'cancelada'
   ): Promise<void> {
     const [citaRows] = await pool.query<RowDataPacket[]>(
-      `SELECT id, cliente_id, barbero_id, estado FROM citas WHERE id = ?`,
+      `SELECT id_reserva, id_cliente, id_barbero, estado FROM reserva WHERE id_reserva = ?`,
       [citaId]
     );
     if (citaRows.length === 0) {
@@ -364,12 +368,12 @@ export class CitasService {
     }
 
     const cita = citaRows[0];
-    const esAdmin = ['administrador', 'dueña'].includes(rolUsuario);
-    if (!esAdmin && Number(cita.cliente_id) !== usuarioSolicitanteId) {
+    const esAdmin = ['admin', 'barbero'].includes(rolUsuario);
+    if (!esAdmin && Number(cita.id_cliente) !== usuarioSolicitanteId) {
       throw { status: 403, message: 'No tienes permisos para cancelar esta cita' };
     }
 
-    if (cita.estado === 'atendida') {
+    if (cita.estado === 'completada') {
       throw { status: 400, message: 'No se puede cancelar una cita ya atendida' };
     }
     if (cita.estado === 'cancelada') {
@@ -377,7 +381,7 @@ export class CitasService {
     }
 
     await pool.query(
-      `UPDATE citas SET estado = ? WHERE id = ?`,
+      `UPDATE reserva SET estado = ? WHERE id_reserva = ?`,
       [estadoFinal, citaId]
     );
 
@@ -389,16 +393,16 @@ export class CitasService {
       datos_despues: { estado: 'cancelada' },
     });
 
-    await this.notificarCambioCita(citaId, 'CITA_CANCELADA', Number(cita.barbero_id));
+    await this.notificarCambioCita(citaId, 'RESERVA_CANCELADA', Number(cita.id_barbero));
   }
 
   static async eliminarCita(citaId: number, usuarioSolicitanteId: number, rolUsuario: string): Promise<void> {
     const cita = await this.obtenerCitaPorId(citaId, usuarioSolicitanteId, rolUsuario);
-    if (cita.estado === 'atendida') {
+    if (cita.estado === 'completada') {
       throw { status: 400, message: 'No se puede eliminar una cita atendida' };
     }
 
-    await pool.query(`DELETE FROM citas WHERE id = ?`, [citaId]);
+    await pool.query(`DELETE FROM reserva WHERE id_reserva = ?`, [citaId]);
 
     await HistorialService.registrar({
       usuario_id: usuarioSolicitanteId,
@@ -411,19 +415,18 @@ export class CitasService {
 
   private static async notificarCambioCita(
     citaId: number,
-    tipo: 'CITA_MODIFICADA' | 'CITA_CANCELADA',
+    tipo: 'RESERVA_CONFIRMADA' | 'RESERVA_CANCELADA',
     barberoId: number
   ): Promise<void> {
     const [admins] = await pool.query<RowDataPacket[]>(
-      `SELECT u.id
-       FROM usuarios u
-       JOIN roles r ON r.id = u.rol_id
-       WHERE u.activo = 1 AND r.nombre IN ('administrador', 'dueña')`
+      `SELECT id_usuario AS id
+       FROM usuario_rol
+       WHERE estado = 'activo' AND rol = 'admin'`
     );
 
     const destinatarios = new Set<number>([barberoId, ...admins.map((row) => Number(row.id))]);
-    const titulo = tipo === 'CITA_MODIFICADA' ? 'Cita modificada' : 'Cita cancelada';
-    const mensaje = `La cita #${citaId} fue ${tipo === 'CITA_MODIFICADA' ? 'modificada' : 'cancelada'}.`;
+    const titulo = tipo === 'RESERVA_CONFIRMADA' ? 'Reserva actualizada' : 'Reserva cancelada';
+    const mensaje = `La reserva #${citaId} fue ${tipo === 'RESERVA_CONFIRMADA' ? 'actualizada' : 'cancelada'}.`;
 
     for (const usuarioId of destinatarios) {
       await NotificacionesService.crear({
@@ -438,30 +441,26 @@ export class CitasService {
 
   static async ejecutarRecordatoriosAutomaticos(): Promise<{ procesadas: number }> {
     const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT c.id, c.cliente_id, c.fecha, c.hora_inicio, u.nombre
-       FROM citas c
-       JOIN usuarios u ON u.id = c.cliente_id
-       WHERE c.estado IN ('pendiente', 'confirmada')
-         AND TIMESTAMP(c.fecha, c.hora_inicio) BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? MINUTE)
-         AND NOT EXISTS (
-           SELECT 1
-           FROM cita_recordatorios cr
-           WHERE cr.cita_id = c.id
-         )`,
+      `SELECT r.id_reserva AS id, r.id_cliente AS cliente_id, r.fecha, r.hora AS hora_inicio, u.nombre, r.recordatorio
+       FROM reserva r
+       JOIN usuario_rol u ON u.id_usuario = r.id_cliente
+       WHERE r.estado IN ('pendiente', 'confirmada')
+         AND TIMESTAMP(r.fecha, r.hora) BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? MINUTE)
+         AND r.recordatorio = 0`,
       [REMINDER_MINUTES]
     );
 
     for (const cita of rows) {
       await NotificacionesService.crear({
         usuario_id: Number(cita.cliente_id),
-        tipo: 'RECORDATORIO_CITA',
-        titulo: 'Recordatorio de cita',
-        mensaje: `Tienes una cita el ${String(cita.fecha).slice(0, 10)} a las ${String(cita.hora_inicio).slice(0, 5)}.`,
+        tipo: 'RECORDATORIO_RESERVA',
+        titulo: 'Recordatorio de reserva',
+        mensaje: `Tienes una reserva el ${String(cita.fecha).slice(0, 10)} a las ${String(cita.hora_inicio).slice(0, 5)}.`,
         referencia_id: Number(cita.id),
       });
 
       await pool.query(
-        `INSERT INTO cita_recordatorios (cita_id, enviado_en) VALUES (?, NOW())`,
+        `UPDATE reserva SET recordatorio = 1 WHERE id_reserva = ?`,
         [cita.id]
       );
     }

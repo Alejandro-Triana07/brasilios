@@ -34,19 +34,16 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const RolesController = __importStar(require("../controllers/roles.controller"));
+const ClientesController = __importStar(require("../controllers/clientes.controller"));
 const auth_middleware_1 = require("../middlewares/auth.middleware");
 const validar_middleware_1 = require("../middlewares/validar.middleware");
 const router = (0, express_1.Router)();
-// Todas las rutas de roles requieren autenticación + rol admin
-router.use(auth_middleware_1.autenticar, (0, auth_middleware_1.soloRoles)('admin'));
-// GET /roles
-router.get('/', RolesController.listarRoles);
-// GET /roles/permisos
-router.get('/permisos', RolesController.listarPermisos);
-// PUT /roles/asignar — asignar rol a un usuario
-router.put('/asignar', (0, auth_middleware_1.requierePermiso)('roles', 'gestionar'), (0, validar_middleware_1.validar)(validar_middleware_1.asignarRolSchema), RolesController.asignarRolUsuario);
-// PUT /roles/:id/permisos — actualizar permisos de un rol
-router.put('/:id/permisos', (0, auth_middleware_1.requierePermiso)('roles', 'gestionar'), (0, validar_middleware_1.validar)(validar_middleware_1.actualizarPermisosSchema), RolesController.actualizarPermisosRol);
+router.use(auth_middleware_1.autenticar, (0, auth_middleware_1.soloRoles)('admin', 'barbero'));
+router.get('/', ClientesController.listarClientes);
+router.get('/:id', ClientesController.obtenerCliente);
+router.get('/:id/historial', ClientesController.historialServiciosCliente);
+router.post('/', (0, validar_middleware_1.validar)(validar_middleware_1.crearClienteSchema), ClientesController.crearCliente);
+router.put('/:id', (0, validar_middleware_1.validar)(validar_middleware_1.actualizarClienteSchema), ClientesController.actualizarCliente);
+router.delete('/:id', ClientesController.eliminarCliente);
 exports.default = router;
-//# sourceMappingURL=roles.routes.js.map
+//# sourceMappingURL=clientes.routes.js.map

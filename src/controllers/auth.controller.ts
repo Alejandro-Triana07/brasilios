@@ -43,6 +43,7 @@ export async function solicitarRecuperacion(req: Request, res: Response): Promis
   } catch (err: any) {
     const status = err.status || 500;
     if (status === 404) R.notFound(res, err.message);
+    else if (status === 501) R.badRequest(res, err.message);
     else R.serverError(res, err.message);
   }
 }
@@ -56,6 +57,7 @@ export async function verificarCodigo(req: Request, res: Response): Promise<void
   } catch (err: any) {
     const status = err.status || 500;
     if (status === 404) R.notFound(res, err.message);
+    else if (status === 501) R.badRequest(res, err.message);
     else if (status === 400) R.badRequest(res, err.message);
     else R.serverError(res, err.message);
   }
@@ -70,6 +72,7 @@ export async function resetearPassword(req: Request, res: Response): Promise<voi
   } catch (err: any) {
     const status = err.status || 500;
     if (status === 400) R.badRequest(res, err.message);
+    else if (status === 501) R.badRequest(res, err.message);
     else if (status === 404) R.notFound(res, err.message);
     else R.serverError(res, err.message);
   }

@@ -1,9 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verificarAccessToken } from '../utils/jwt';
 import { estaRevocado } from '../services/auth.service';
-import { pool } from '../config/database';
 import { forbidden, unauthorized } from '../utils/response';
-import { RowDataPacket } from 'mysql2';
 
 // Extender el tipo Request para incluir el usuario autenticado
 declare global {
@@ -73,22 +71,23 @@ export function soloRoles(...roles: string[]) {
 // Middleware: verificar permiso específico en BD
 // -------------------------------------------------------
 export function requierePermiso(modulo: string, accion: string) {
+  const permisosPorRol: Record<string, string[]> = {
+    admin: ['*'],
+    barbero: ['citas:ver', 'citas:editar', 'clientes:ver', 'notificaciones:ver'],
+    cliente: ['citas:crear', 'citas:ver', 'citas:cancelar', 'notificaciones:ver'],
+  };
+
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!req.usuario) {
       unauthorized(res, 'No autenticado');
       return;
     }
 
-    const [rows] = await pool.query<RowDataPacket[]>(
-      `SELECT rp.permiso_id
-       FROM rol_permisos rp
-       JOIN permisos p  ON p.id  = rp.permiso_id
-       JOIN roles    r  ON r.id  = rp.rol_id
-       WHERE r.nombre = ? AND p.modulo = ? AND p.accion = ?`,
-      [req.usuario.rol, modulo, accion]
-    );
+    const permiso = `${modulo}:${accion}`;
+    const permisos = permisosPorRol[req.usuario.rol] ?? [];
+    const autorizado = permisos.includes('*') || permisos.includes(permiso);
 
-    if (rows.length === 0) {
+    if (!autorizado) {
       forbidden(res, 'No tienes permisos para realizar esta acción');
       return;
     }

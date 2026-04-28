@@ -28,33 +28,35 @@ function ensureFutureDateTime(fecha, hora) {
 }
 class CitasService {
     static async listarCitas(usuarioId, rolUsuario) {
-        const esAdmin = ['administrador', 'dueña', 'empleado'].includes(rolUsuario);
-        const where = esAdmin ? '' : 'WHERE c.cliente_id = ?';
+        const esAdmin = ['admin', 'barbero'].includes(rolUsuario);
+        const where = esAdmin ? '' : 'WHERE r.id_cliente = ?';
         const params = esAdmin ? [] : [usuarioId];
-        const [rows] = await database_1.pool.query(`SELECT c.id, c.fecha, c.hora_inicio, c.hora_fin, c.estado, c.observaciones, c.created_at,
-              cli.id AS cliente_id, cli.nombre AS cliente_nombre,
-              b.id AS barbero_id, b.nombre AS barbero_nombre,
-              s.id AS servicio_id, s.nombre AS servicio_nombre, s.duracion AS servicio_duracion
-       FROM citas c
-       JOIN usuarios cli ON cli.id = c.cliente_id
-       JOIN usuarios b ON b.id = c.barbero_id
-       JOIN servicios s ON s.id = c.servicio_id
+        const [rows] = await database_1.pool.query(`SELECT r.id_reserva AS id, r.fecha, r.hora AS hora_inicio, r.hora AS hora_fin, r.estado, NULL AS observaciones,
+              r.id_cliente AS cliente_id, CONCAT(cli.nombre, ' ', cli.apellido) AS cliente_nombre,
+              r.id_barbero AS barbero_id, CONCAT(b.nombre, ' ', b.apellido) AS barbero_nombre,
+              s.id_servicio AS servicio_id, s.nombre_servicio AS servicio_nombre, s.duracion AS servicio_duracion
+       FROM reserva r
+       JOIN usuario_rol cli ON cli.id_usuario = r.id_cliente
+       JOIN usuario_rol b ON b.id_usuario = r.id_barbero
+       JOIN reserva_servicio rs ON rs.id_reserva = r.id_reserva
+       JOIN servicio s ON s.id_servicio = rs.id_servicio
        ${where}
-       ORDER BY c.fecha DESC, c.hora_inicio DESC`, params);
+       ORDER BY r.fecha DESC, r.hora DESC`, params);
         return rows;
     }
     static async obtenerCitaPorId(citaId, usuarioId, rolUsuario) {
-        const esAdmin = ['administrador', 'dueña', 'empleado'].includes(rolUsuario);
-        const where = esAdmin ? 'c.id = ?' : 'c.id = ? AND c.cliente_id = ?';
+        const esAdmin = ['admin', 'barbero'].includes(rolUsuario);
+        const where = esAdmin ? 'r.id_reserva = ?' : 'r.id_reserva = ? AND r.id_cliente = ?';
         const params = esAdmin ? [citaId] : [citaId, usuarioId];
-        const [rows] = await database_1.pool.query(`SELECT c.id, c.fecha, c.hora_inicio, c.hora_fin, c.estado, c.observaciones, c.created_at,
-              cli.id AS cliente_id, cli.nombre AS cliente_nombre,
-              b.id AS barbero_id, b.nombre AS barbero_nombre,
-              s.id AS servicio_id, s.nombre AS servicio_nombre, s.duracion AS servicio_duracion
-       FROM citas c
-       JOIN usuarios cli ON cli.id = c.cliente_id
-       JOIN usuarios b ON b.id = c.barbero_id
-       JOIN servicios s ON s.id = c.servicio_id
+        const [rows] = await database_1.pool.query(`SELECT r.id_reserva AS id, r.fecha, r.hora AS hora_inicio, r.hora AS hora_fin, r.estado, NULL AS observaciones,
+              r.id_cliente AS cliente_id, CONCAT(cli.nombre, ' ', cli.apellido) AS cliente_nombre,
+              r.id_barbero AS barbero_id, CONCAT(b.nombre, ' ', b.apellido) AS barbero_nombre,
+              s.id_servicio AS servicio_id, s.nombre_servicio AS servicio_nombre, s.duracion AS servicio_duracion
+       FROM reserva r
+       JOIN usuario_rol cli ON cli.id_usuario = r.id_cliente
+       JOIN usuario_rol b ON b.id_usuario = r.id_barbero
+       JOIN reserva_servicio rs ON rs.id_reserva = r.id_reserva
+       JOIN servicio s ON s.id_servicio = rs.id_servicio
        WHERE ${where}
        LIMIT 1`, params);
         if (rows.length === 0) {
@@ -64,14 +66,13 @@ class CitasService {
     }
     static async validarDisponibilidad(fecha, hora, servicioId, barberoId, citaExcluirId) {
         ensureFutureDateTime(fecha, hora);
-        const [servicioRows] = await database_1.pool.query(`SELECT id, duracion FROM servicios WHERE id = ? AND activo = 1`, [servicioId]);
+        const [servicioRows] = await database_1.pool.query(`SELECT id_servicio, duracion FROM servicio WHERE id_servicio = ?`, [servicioId]);
         if (servicioRows.length === 0) {
             throw { status: 404, message: 'Servicio no encontrado o inactivo' };
         }
-        const [barberoRows] = await database_1.pool.query(`SELECT u.id
-       FROM usuarios u
-       JOIN roles r ON r.id = u.rol_id
-       WHERE u.id = ? AND u.activo = 1 AND r.nombre IN ('empleado', 'barbero', 'administrador', 'dueña')`, [barberoId]);
+        const [barberoRows] = await database_1.pool.query(`SELECT id_usuario
+       FROM usuario_rol
+       WHERE id_usuario = ? AND estado = 'activo' AND rol IN ('barbero', 'admin')`, [barberoId]);
         if (barberoRows.length === 0) {
             throw { status: 404, message: 'Barbero no encontrado o inactivo' };
         }
@@ -89,13 +90,15 @@ class CitasService {
             };
         }
         const query = `
-      SELECT id
-      FROM citas
-      WHERE barbero_id = ?
+      SELECT r.id_reserva AS id
+      FROM reserva r
+      JOIN reserva_servicio rs ON rs.id_reserva = r.id_reserva
+      JOIN servicio s ON s.id_servicio = rs.id_servicio
+      WHERE r.id_barbero = ?
         AND fecha = ?
         AND estado IN ('pendiente', 'confirmada')
-        AND (? < hora_fin AND ? > hora_inicio)
-        ${citaExcluirId ? 'AND id <> ?' : ''}
+        AND (? < ADDTIME(r.hora, SEC_TO_TIME(s.duracion * 60)) AND ? > r.hora)
+        ${citaExcluirId ? 'AND r.id_reserva <> ?' : ''}
       LIMIT 1
     `;
         const params = [barberoId, fecha, hora, horaFin];
@@ -118,11 +121,10 @@ class CitasService {
     }
     static async listarBarberosDisponibles(fecha, hora, servicioId) {
         ensureFutureDateTime(fecha, hora);
-        const [barberos] = await database_1.pool.query(`SELECT u.id, u.nombre, u.correo
-       FROM usuarios u
-       JOIN roles r ON r.id = u.rol_id
-       WHERE u.activo = 1 AND r.nombre IN ('empleado', 'barbero')
-       ORDER BY u.nombre ASC`);
+        const [barberos] = await database_1.pool.query(`SELECT id_usuario AS id, CONCAT(nombre, ' ', apellido) AS nombre, correo_electronico AS correo
+       FROM usuario_rol
+       WHERE estado = 'activo' AND rol IN ('barbero', 'admin')
+       ORDER BY nombre ASC`);
         const disponibles = [];
         for (const barbero of barberos) {
             const disponibilidad = await this.validarDisponibilidad(fecha, hora, servicioId, Number(barbero.id));
@@ -137,7 +139,7 @@ class CitasService {
         return disponibles;
     }
     static async crearCita(input) {
-        const [clienteRows] = await database_1.pool.query(`SELECT id FROM usuarios WHERE id = ? AND activo = 1`, [input.cliente_id]);
+        const [clienteRows] = await database_1.pool.query(`SELECT id_usuario FROM usuario_rol WHERE id_usuario = ? AND rol = 'cliente' AND estado = 'activo'`, [input.cliente_id]);
         if (clienteRows.length === 0) {
             throw { status: 404, message: 'Cliente no encontrado o inactivo' };
         }
@@ -153,18 +155,14 @@ class CitasService {
         if (!disponibilidad.disponible) {
             throw { status: 409, message: disponibilidad.mensaje };
         }
-        const [result] = await database_1.pool.query(`INSERT INTO citas
-        (cliente_id, barbero_id, servicio_id, fecha, hora_inicio, hora_fin, estado, observaciones, creado_por)
-       VALUES (?, ?, ?, ?, ?, ?, 'pendiente', ?, ?)`, [
+        const [result] = await database_1.pool.query(`INSERT INTO reserva (id_cliente, id_barbero, fecha, hora, estado, recordatorio)
+       VALUES (?, ?, ?, ?, 'pendiente', 0)`, [
             input.cliente_id,
             barberoId,
-            input.servicio_id,
             input.fecha,
             input.hora,
-            disponibilidad.hora_fin,
-            input.observaciones ?? null,
-            input.creado_por,
         ]);
+        await database_1.pool.query(`INSERT INTO reserva_servicio (id_reserva, id_servicio) VALUES (?, ?)`, [result.insertId, input.servicio_id]);
         await historial_service_1.HistorialService.registrar({
             usuario_id: input.creado_por,
             accion: 'CREAR',
@@ -185,38 +183,37 @@ class CitasService {
         };
     }
     static async modificarCita(citaId, input) {
-        const [citaRows] = await database_1.pool.query(`SELECT * FROM citas WHERE id = ?`, [citaId]);
+        const [citaRows] = await database_1.pool.query(`SELECT * FROM reserva WHERE id_reserva = ?`, [citaId]);
         if (citaRows.length === 0) {
             throw { status: 404, message: 'Cita no encontrada' };
         }
         const cita = citaRows[0];
-        const esAdmin = ['administrador', 'dueña'].includes(input.rol_usuario);
-        if (!esAdmin && Number(cita.cliente_id) !== input.actualizado_por) {
+        const esAdmin = ['admin', 'barbero'].includes(input.rol_usuario);
+        if (!esAdmin && Number(cita.id_cliente) !== input.actualizado_por) {
             throw { status: 403, message: 'No tienes permisos para modificar esta cita' };
         }
-        if (cita.estado === 'cancelada' || cita.estado === 'atendida') {
+        if (cita.estado === 'cancelada' || cita.estado === 'completada') {
             throw { status: 400, message: 'No se puede modificar una cita cancelada o atendida' };
         }
         const fechaNueva = (input.fecha ?? cita.fecha).toString().slice(0, 10);
-        const horaNueva = (input.hora ?? cita.hora_inicio).toString().slice(0, 5);
-        const servicioNuevo = Number(input.servicio_id ?? cita.servicio_id);
-        const barberoNuevo = Number(input.barbero_id ?? cita.barbero_id);
+        const horaNueva = (input.hora ?? cita.hora).toString().slice(0, 5);
+        const [servicioRows] = await database_1.pool.query(`SELECT id_servicio FROM reserva_servicio WHERE id_reserva = ? LIMIT 1`, [citaId]);
+        const servicioNuevo = Number(input.servicio_id ?? servicioRows[0]?.id_servicio);
+        const barberoNuevo = Number(input.barbero_id ?? cita.id_barbero);
         ensureFutureDateTime(fechaNueva, horaNueva);
         const disponibilidad = await this.validarDisponibilidad(fechaNueva, horaNueva, servicioNuevo, barberoNuevo, citaId);
         if (!disponibilidad.disponible) {
             throw { status: 409, message: disponibilidad.mensaje };
         }
-        await database_1.pool.query(`UPDATE citas
-       SET fecha = ?, hora_inicio = ?, hora_fin = ?, servicio_id = ?, barbero_id = ?, observaciones = ?
-       WHERE id = ?`, [
+        await database_1.pool.query(`UPDATE reserva SET fecha = ?, hora = ?, id_barbero = ? WHERE id_reserva = ?`, [
             fechaNueva,
             horaNueva,
-            disponibilidad.hora_fin,
-            servicioNuevo,
             barberoNuevo,
-            input.observaciones ?? cita.observaciones ?? null,
             citaId,
         ]);
+        if (input.servicio_id) {
+            await database_1.pool.query(`UPDATE reserva_servicio SET id_servicio = ? WHERE id_reserva = ?`, [servicioNuevo, citaId]);
+        }
         await historial_service_1.HistorialService.registrar({
             usuario_id: input.actualizado_por,
             accion: 'MODIFICAR',
@@ -224,9 +221,9 @@ class CitasService {
             descripcion: `Cita #${citaId} modificada`,
             datos_antes: {
                 fecha: cita.fecha,
-                hora_inicio: cita.hora_inicio,
-                servicio_id: cita.servicio_id,
-                barbero_id: cita.barbero_id,
+                hora_inicio: cita.hora,
+                servicio_id: servicioRows[0]?.id_servicio,
+                barbero_id: cita.id_barbero,
             },
             datos_despues: {
                 fecha: fechaNueva,
@@ -235,25 +232,25 @@ class CitasService {
                 barbero_id: barberoNuevo,
             },
         });
-        await this.notificarCambioCita(citaId, 'CITA_MODIFICADA', barberoNuevo);
+        await this.notificarCambioCita(citaId, 'RESERVA_CONFIRMADA', barberoNuevo);
     }
     static async cancelarCita(citaId, usuarioSolicitanteId, rolUsuario, estadoFinal = 'cancelada') {
-        const [citaRows] = await database_1.pool.query(`SELECT id, cliente_id, barbero_id, estado FROM citas WHERE id = ?`, [citaId]);
+        const [citaRows] = await database_1.pool.query(`SELECT id_reserva, id_cliente, id_barbero, estado FROM reserva WHERE id_reserva = ?`, [citaId]);
         if (citaRows.length === 0) {
             throw { status: 404, message: 'Cita no encontrada' };
         }
         const cita = citaRows[0];
-        const esAdmin = ['administrador', 'dueña'].includes(rolUsuario);
-        if (!esAdmin && Number(cita.cliente_id) !== usuarioSolicitanteId) {
+        const esAdmin = ['admin', 'barbero'].includes(rolUsuario);
+        if (!esAdmin && Number(cita.id_cliente) !== usuarioSolicitanteId) {
             throw { status: 403, message: 'No tienes permisos para cancelar esta cita' };
         }
-        if (cita.estado === 'atendida') {
+        if (cita.estado === 'completada') {
             throw { status: 400, message: 'No se puede cancelar una cita ya atendida' };
         }
         if (cita.estado === 'cancelada') {
             throw { status: 400, message: 'La cita ya se encuentra cancelada' };
         }
-        await database_1.pool.query(`UPDATE citas SET estado = ? WHERE id = ?`, [estadoFinal, citaId]);
+        await database_1.pool.query(`UPDATE reserva SET estado = ? WHERE id_reserva = ?`, [estadoFinal, citaId]);
         await historial_service_1.HistorialService.registrar({
             usuario_id: usuarioSolicitanteId,
             accion: 'MODIFICAR',
@@ -261,14 +258,14 @@ class CitasService {
             descripcion: `Cita #${citaId} cancelada`,
             datos_despues: { estado: 'cancelada' },
         });
-        await this.notificarCambioCita(citaId, 'CITA_CANCELADA', Number(cita.barbero_id));
+        await this.notificarCambioCita(citaId, 'RESERVA_CANCELADA', Number(cita.id_barbero));
     }
     static async eliminarCita(citaId, usuarioSolicitanteId, rolUsuario) {
         const cita = await this.obtenerCitaPorId(citaId, usuarioSolicitanteId, rolUsuario);
-        if (cita.estado === 'atendida') {
+        if (cita.estado === 'completada') {
             throw { status: 400, message: 'No se puede eliminar una cita atendida' };
         }
-        await database_1.pool.query(`DELETE FROM citas WHERE id = ?`, [citaId]);
+        await database_1.pool.query(`DELETE FROM reserva WHERE id_reserva = ?`, [citaId]);
         await historial_service_1.HistorialService.registrar({
             usuario_id: usuarioSolicitanteId,
             accion: 'ELIMINAR',
@@ -278,13 +275,12 @@ class CitasService {
         });
     }
     static async notificarCambioCita(citaId, tipo, barberoId) {
-        const [admins] = await database_1.pool.query(`SELECT u.id
-       FROM usuarios u
-       JOIN roles r ON r.id = u.rol_id
-       WHERE u.activo = 1 AND r.nombre IN ('administrador', 'dueña')`);
+        const [admins] = await database_1.pool.query(`SELECT id_usuario AS id
+       FROM usuario_rol
+       WHERE estado = 'activo' AND rol = 'admin'`);
         const destinatarios = new Set([barberoId, ...admins.map((row) => Number(row.id))]);
-        const titulo = tipo === 'CITA_MODIFICADA' ? 'Cita modificada' : 'Cita cancelada';
-        const mensaje = `La cita #${citaId} fue ${tipo === 'CITA_MODIFICADA' ? 'modificada' : 'cancelada'}.`;
+        const titulo = tipo === 'RESERVA_CONFIRMADA' ? 'Reserva actualizada' : 'Reserva cancelada';
+        const mensaje = `La reserva #${citaId} fue ${tipo === 'RESERVA_CONFIRMADA' ? 'actualizada' : 'cancelada'}.`;
         for (const usuarioId of destinatarios) {
             await notificaciones_service_1.NotificacionesService.crear({
                 usuario_id: usuarioId,
@@ -296,25 +292,21 @@ class CitasService {
         }
     }
     static async ejecutarRecordatoriosAutomaticos() {
-        const [rows] = await database_1.pool.query(`SELECT c.id, c.cliente_id, c.fecha, c.hora_inicio, u.nombre
-       FROM citas c
-       JOIN usuarios u ON u.id = c.cliente_id
-       WHERE c.estado IN ('pendiente', 'confirmada')
-         AND TIMESTAMP(c.fecha, c.hora_inicio) BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? MINUTE)
-         AND NOT EXISTS (
-           SELECT 1
-           FROM cita_recordatorios cr
-           WHERE cr.cita_id = c.id
-         )`, [REMINDER_MINUTES]);
+        const [rows] = await database_1.pool.query(`SELECT r.id_reserva AS id, r.id_cliente AS cliente_id, r.fecha, r.hora AS hora_inicio, u.nombre, r.recordatorio
+       FROM reserva r
+       JOIN usuario_rol u ON u.id_usuario = r.id_cliente
+       WHERE r.estado IN ('pendiente', 'confirmada')
+         AND TIMESTAMP(r.fecha, r.hora) BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL ? MINUTE)
+         AND r.recordatorio = 0`, [REMINDER_MINUTES]);
         for (const cita of rows) {
             await notificaciones_service_1.NotificacionesService.crear({
                 usuario_id: Number(cita.cliente_id),
-                tipo: 'RECORDATORIO_CITA',
-                titulo: 'Recordatorio de cita',
-                mensaje: `Tienes una cita el ${String(cita.fecha).slice(0, 10)} a las ${String(cita.hora_inicio).slice(0, 5)}.`,
+                tipo: 'RECORDATORIO_RESERVA',
+                titulo: 'Recordatorio de reserva',
+                mensaje: `Tienes una reserva el ${String(cita.fecha).slice(0, 10)} a las ${String(cita.hora_inicio).slice(0, 5)}.`,
                 referencia_id: Number(cita.id),
             });
-            await database_1.pool.query(`INSERT INTO cita_recordatorios (cita_id, enviado_en) VALUES (?, NOW())`, [cita.id]);
+            await database_1.pool.query(`UPDATE reserva SET recordatorio = 1 WHERE id_reserva = ?`, [cita.id]);
         }
         return { procesadas: rows.length };
     }

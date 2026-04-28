@@ -5,7 +5,6 @@ exports.soloRoles = soloRoles;
 exports.requierePermiso = requierePermiso;
 const jwt_1 = require("../utils/jwt");
 const auth_service_1 = require("../services/auth.service");
-const database_1 = require("../config/database");
 const response_1 = require("../utils/response");
 // -------------------------------------------------------
 // Middleware: verificar JWT y cargar usuario en req
@@ -51,17 +50,20 @@ function soloRoles(...roles) {
 // Middleware: verificar permiso específico en BD
 // -------------------------------------------------------
 function requierePermiso(modulo, accion) {
+    const permisosPorRol = {
+        admin: ['*'],
+        barbero: ['citas:ver', 'citas:editar', 'clientes:ver', 'notificaciones:ver'],
+        cliente: ['citas:crear', 'citas:ver', 'citas:cancelar', 'notificaciones:ver'],
+    };
     return async (req, res, next) => {
         if (!req.usuario) {
             (0, response_1.unauthorized)(res, 'No autenticado');
             return;
         }
-        const [rows] = await database_1.pool.query(`SELECT rp.permiso_id
-       FROM rol_permisos rp
-       JOIN permisos p  ON p.id  = rp.permiso_id
-       JOIN roles    r  ON r.id  = rp.rol_id
-       WHERE r.nombre = ? AND p.modulo = ? AND p.accion = ?`, [req.usuario.rol, modulo, accion]);
-        if (rows.length === 0) {
+        const permiso = `${modulo}:${accion}`;
+        const permisos = permisosPorRol[req.usuario.rol] ?? [];
+        const autorizado = permisos.includes('*') || permisos.includes(permiso);
+        if (!autorizado) {
             (0, response_1.forbidden)(res, 'No tienes permisos para realizar esta acción');
             return;
         }

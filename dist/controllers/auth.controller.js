@@ -84,6 +84,8 @@ async function solicitarRecuperacion(req, res) {
         const status = err.status || 500;
         if (status === 404)
             R.notFound(res, err.message);
+        else if (status === 501)
+            R.badRequest(res, err.message);
         else
             R.serverError(res, err.message);
     }
@@ -99,6 +101,8 @@ async function verificarCodigo(req, res) {
         const status = err.status || 500;
         if (status === 404)
             R.notFound(res, err.message);
+        else if (status === 501)
+            R.badRequest(res, err.message);
         else if (status === 400)
             R.badRequest(res, err.message);
         else
@@ -115,6 +119,8 @@ async function resetearPassword(req, res) {
     catch (err) {
         const status = err.status || 500;
         if (status === 400)
+            R.badRequest(res, err.message);
+        else if (status === 501)
             R.badRequest(res, err.message);
         else if (status === 404)
             R.notFound(res, err.message);

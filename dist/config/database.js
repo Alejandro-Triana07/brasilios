@@ -17,7 +17,7 @@ exports.pool = promise_1.default.createPool({
     port: dbPort,
     user: process.env.DB_USER ?? 'root',
     password: process.env.DB_PASSWORD ?? '',
-    database: process.env.DB_NAME ?? 'brasilios_db',
+    database: process.env.DB_NAME ?? 'brasilios',
     waitForConnections: true,
     connectionLimit: Number(process.env.DB_CONNECTION_LIMIT ?? '10'),
     queueLimit: 0,

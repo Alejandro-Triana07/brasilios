@@ -5,8 +5,8 @@ import { validar, asignarRolSchema, actualizarPermisosSchema } from '../middlewa
 
 const router = Router();
 
-// Todas las rutas de roles requieren autenticación + rol admin/dueña
-router.use(autenticar, soloRoles('administrador', 'dueña'));
+// Todas las rutas de roles requieren autenticación + rol admin
+router.use(autenticar, soloRoles('admin'));
 
 // GET /roles
 router.get('/',          RolesController.listarRoles);

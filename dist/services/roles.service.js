@@ -6,68 +6,51 @@ const historial_service_1 = require("./historial.service");
 class RolesService {
     // Listar todos los roles con sus permisos
     static async listarRoles() {
-        const [roles] = await database_1.pool.query(`SELECT id, nombre, descripcion FROM roles ORDER BY id`);
-        const result = [];
-        for (const rol of roles) {
-            const [permisos] = await database_1.pool.query(`SELECT p.id, p.modulo, p.accion, p.descripcion
-         FROM permisos p
-         JOIN rol_permisos rp ON rp.permiso_id = p.id
-         WHERE rp.rol_id = ?`, [rol.id]);
-            result.push({ ...rol, permisos: permisos });
-        }
-        return result;
+        const permisos = await this.listarPermisos();
+        const grupos = {
+            admin: ['*'],
+            barbero: ['citas:ver', 'citas:editar', 'clientes:ver', 'notificaciones:ver'],
+            cliente: ['citas:crear', 'citas:ver', 'citas:cancelar', 'notificaciones:ver'],
+        };
+        return ['admin', 'barbero', 'cliente'].map((nombreRol) => ({
+            id: nombreRol,
+            nombre: nombreRol,
+            descripcion: `Rol ${nombreRol}`,
+            permisos: grupos[nombreRol].includes('*')
+                ? permisos
+                : permisos.filter((p) => grupos[nombreRol].includes(`${p.modulo}:${p.accion}`)),
+        }));
     }
     // Actualizar permisos de un rol  (HU-1.7)
     static async actualizarPermisosRol(rolId, permisosIds, adminId, ip, userAgent) {
-        // Verificar que el rol exista
-        const [rolRows] = await database_1.pool.query(`SELECT id, nombre FROM roles WHERE id = ?`, [rolId]);
-        if (rolRows.length === 0) {
-            throw { status: 404, message: 'Rol no encontrado' };
-        }
-        // Obtener permisos anteriores para auditoría
-        const [permisosAnteriores] = await database_1.pool.query(`SELECT permiso_id FROM rol_permisos WHERE rol_id = ?`, [rolId]);
-        const conn = await database_1.pool.getConnection();
-        try {
-            await conn.beginTransaction();
-            // Eliminar permisos actuales
-            await conn.query(`DELETE FROM rol_permisos WHERE rol_id = ?`, [rolId]);
-            // Insertar nuevos permisos
-            if (permisosIds.length > 0) {
-                const values = permisosIds.map(pid => [rolId, pid]);
-                await conn.query(`INSERT INTO rol_permisos (rol_id, permiso_id) VALUES ?`, [values]);
-            }
-            await conn.commit();
-        }
-        catch (err) {
-            await conn.rollback();
-            throw { status: 500, message: 'Error actualizando permisos del rol' };
-        }
-        finally {
-            conn.release();
-        }
+        void rolId;
+        void permisosIds;
         await historial_service_1.HistorialService.registrar({
             usuario_id: adminId,
             accion: 'MODIFICAR',
             modulo: 'roles',
-            descripcion: `Permisos del rol "${rolRows[0].nombre}" actualizados`,
+            descripcion: 'Solicitud de actualización de permisos (modo estático)',
             ip_address: ip,
             user_agent: userAgent,
-            datos_antes: { permisos: permisosAnteriores.map(p => p.permiso_id) },
-            datos_despues: { permisos: permisosIds },
+            datos_despues: { permisos: permisosIds, nota: 'No persistente en DB v1.0' },
         });
     }
     // Asignar rol a un usuario  (HU-1.7)
     static async asignarRolUsuario(usuarioId, rolId, adminId, ip, userAgent) {
-        const [userRows] = await database_1.pool.query(`SELECT id, nombre, rol_id FROM usuarios WHERE id = ?`, [usuarioId]);
+        const [userRows] = await database_1.pool.query(`SELECT id_usuario, nombre, rol FROM usuario_rol WHERE id_usuario = ?`, [usuarioId]);
         if (userRows.length === 0) {
             throw { status: 404, message: 'Usuario no registrado' };
         }
-        const [rolRows] = await database_1.pool.query(`SELECT id FROM roles WHERE id = ?`, [rolId]);
-        if (rolRows.length === 0) {
+        const mapaRoles = {
+            1: 'admin',
+            2: 'barbero',
+            3: 'cliente',
+        };
+        const rolNuevo = mapaRoles[rolId];
+        if (!rolNuevo)
             throw { status: 404, message: 'Rol no encontrado' };
-        }
-        const rolAnterior = userRows[0].rol_id;
-        await database_1.pool.query(`UPDATE usuarios SET rol_id = ? WHERE id = ?`, [rolId, usuarioId]);
+        const rolAnterior = String(userRows[0].rol);
+        await database_1.pool.query(`UPDATE usuario_rol SET rol = ? WHERE id_usuario = ?`, [rolNuevo, usuarioId]);
         await historial_service_1.HistorialService.registrar({
             usuario_id: adminId,
             accion: 'MODIFICAR',
@@ -75,14 +58,20 @@ class RolesService {
             descripcion: `Rol del usuario "${userRows[0].nombre}" actualizado`,
             ip_address: ip,
             user_agent: userAgent,
-            datos_antes: { rol_id: rolAnterior },
-            datos_despues: { rol_id: rolId },
+            datos_antes: { rol: rolAnterior },
+            datos_despues: { rol: rolNuevo },
         });
     }
     // Listar todos los permisos disponibles
     static async listarPermisos() {
-        const [rows] = await database_1.pool.query(`SELECT id, modulo, accion, descripcion FROM permisos ORDER BY modulo, accion`);
-        return rows;
+        return [
+            { id: 'citas_ver', modulo: 'citas', accion: 'ver', descripcion: 'Ver citas' },
+            { id: 'citas_crear', modulo: 'citas', accion: 'crear', descripcion: 'Crear citas' },
+            { id: 'citas_editar', modulo: 'citas', accion: 'editar', descripcion: 'Editar citas' },
+            { id: 'citas_cancelar', modulo: 'citas', accion: 'cancelar', descripcion: 'Cancelar citas' },
+            { id: 'clientes_ver', modulo: 'clientes', accion: 'ver', descripcion: 'Ver clientes' },
+            { id: 'notificaciones_ver', modulo: 'notificaciones', accion: 'ver', descripcion: 'Ver notificaciones' },
+        ];
     }
 }
 exports.RolesService = RolesService;

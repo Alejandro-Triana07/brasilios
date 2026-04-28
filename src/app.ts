@@ -9,6 +9,7 @@ import historialRoutes from './routes/historial.routes';
 import rolesRoutes    from './routes/roles.routes';
 import citasRoutes from './routes/citas.routes';
 import notificacionesRoutes from './routes/notificaciones.routes';
+import clientesRoutes from './routes/clientes.routes';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use('/api/historial', historialRoutes);
 app.use('/api/roles',     rolesRoutes);
 app.use('/api/citas',     citasRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
+app.use('/api/clientes', clientesRoutes);
 
 // ─── Ruta base ────────────────────────────────────────────────────────────────
 app.get('/', (_req, res) => {

@@ -6,7 +6,6 @@ interface CrearCitaInput {
     fecha: string;
     hora: string;
     barbero_id?: number;
-    observaciones?: string;
     creado_por: number;
 }
 interface ModificarCitaInput {
@@ -14,7 +13,6 @@ interface ModificarCitaInput {
     hora?: string;
     servicio_id?: number;
     barbero_id?: number;
-    observaciones?: string;
     actualizado_por: number;
     rol_usuario: string;
 }

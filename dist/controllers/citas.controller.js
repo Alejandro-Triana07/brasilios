@@ -68,7 +68,7 @@ async function obtenerCita(req, res) {
 }
 async function crearCita(req, res) {
     try {
-        const { cliente_id, servicio_id, fecha, hora, barbero_id, observaciones } = req.body;
+        const { cliente_id, servicio_id, fecha, hora, barbero_id } = req.body;
         if (req.usuario.rol === 'cliente' && req.usuario.id !== cliente_id) {
             R.forbidden(res, 'Un cliente solo puede registrar citas para su propia cuenta');
             return;
@@ -79,7 +79,6 @@ async function crearCita(req, res) {
             fecha,
             hora,
             barbero_id,
-            observaciones,
             creado_por: req.usuario.id,
         });
         R.created(res, 'Cita registrada correctamente', result);

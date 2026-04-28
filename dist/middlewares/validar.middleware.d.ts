@@ -177,4 +177,43 @@ export declare const disponibilidadSchema: z.ZodObject<{
     hora: string;
     barbero_id?: number | undefined;
 }>;
+export declare const crearClienteSchema: z.ZodObject<{
+    nombre: z.ZodString;
+    telefono: z.ZodString;
+    correo: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    correo: string;
+    nombre: string;
+    telefono: string;
+}, {
+    correo: string;
+    nombre: string;
+    telefono: string;
+}>;
+export declare const actualizarClienteSchema: z.ZodEffects<z.ZodObject<{
+    nombre: z.ZodOptional<z.ZodString>;
+    telefono: z.ZodOptional<z.ZodString>;
+    correo: z.ZodOptional<z.ZodString>;
+    activo: z.ZodOptional<z.ZodBoolean>;
+}, "strip", z.ZodTypeAny, {
+    activo?: boolean | undefined;
+    correo?: string | undefined;
+    nombre?: string | undefined;
+    telefono?: string | undefined;
+}, {
+    activo?: boolean | undefined;
+    correo?: string | undefined;
+    nombre?: string | undefined;
+    telefono?: string | undefined;
+}>, {
+    activo?: boolean | undefined;
+    correo?: string | undefined;
+    nombre?: string | undefined;
+    telefono?: string | undefined;
+}, {
+    activo?: boolean | undefined;
+    correo?: string | undefined;
+    nombre?: string | undefined;
+    telefono?: string | undefined;
+}>;
 //# sourceMappingURL=validar.middleware.d.ts.map

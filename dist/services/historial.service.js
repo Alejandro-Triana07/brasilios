@@ -6,17 +6,10 @@ class HistorialService {
     // Registrar una entrada en el historial
     static async registrar(params) {
         try {
-            await database_1.pool.query(`INSERT INTO historial_cambios
-          (usuario_id, accion, modulo, descripcion, ip_address, user_agent, datos_antes, datos_despues)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
+            await database_1.pool.query(`INSERT INTO reporte (id_usuario, tipo)
+         VALUES (?, ?)`, [
                 params.usuario_id ?? null,
-                params.accion,
-                params.modulo,
-                params.descripcion ?? null,
-                params.ip_address ?? null,
-                params.user_agent ?? null,
-                params.datos_antes ? JSON.stringify(params.datos_antes) : null,
-                params.datos_despues ? JSON.stringify(params.datos_despues) : null,
+                `${params.modulo}:${params.accion}`,
             ]);
         }
         catch (err) {
@@ -32,33 +25,35 @@ class HistorialService {
         const condiciones = [];
         const params = [];
         if (filtros.fechaDesde) {
-            condiciones.push('h.created_at >= ?');
+            condiciones.push('h.fecha_generacion >= ?');
             params.push(filtros.fechaDesde);
         }
         if (filtros.fechaHasta) {
-            condiciones.push('h.created_at <= ?');
+            condiciones.push('h.fecha_generacion <= ?');
             params.push(filtros.fechaHasta + ' 23:59:59');
         }
         if (filtros.usuarioId) {
-            condiciones.push('h.usuario_id = ?');
+            condiciones.push('h.id_usuario = ?');
             params.push(filtros.usuarioId);
         }
         if (filtros.modulo) {
-            condiciones.push('h.modulo = ?');
-            params.push(filtros.modulo);
+            condiciones.push('h.tipo LIKE ?');
+            params.push(`${filtros.modulo}:%`);
         }
         if (filtros.accion) {
-            condiciones.push('h.accion = ?');
-            params.push(filtros.accion);
+            condiciones.push('h.tipo LIKE ?');
+            params.push(`%:${filtros.accion}`);
         }
         const where = condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : '';
-        const [countRows] = await database_1.pool.query(`SELECT COUNT(*) AS total FROM historial_cambios h ${where}`, params);
+        const [countRows] = await database_1.pool.query(`SELECT COUNT(*) AS total FROM reporte h ${where}`, params);
         const total = countRows[0].total;
-        const [rows] = await database_1.pool.query(`SELECT h.*, u.nombre AS usuario_nombre, u.correo AS usuario_correo
-       FROM historial_cambios h
-       LEFT JOIN usuarios u ON u.id = h.usuario_id
+        const [rows] = await database_1.pool.query(`SELECT h.id_reporte, h.id_usuario, h.tipo, h.fecha_generacion,
+              CONCAT(u.nombre, ' ', u.apellido) AS usuario_nombre,
+              u.correo_electronico AS usuario_correo
+       FROM reporte h
+       LEFT JOIN usuario_rol u ON u.id_usuario = h.id_usuario
        ${where}
-       ORDER BY h.created_at DESC
+       ORDER BY h.fecha_generacion DESC
        LIMIT ? OFFSET ?`, [...params, limite, offset]);
         return {
             registros: rows,
